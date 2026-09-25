@@ -19,6 +19,7 @@ import {
   memberRoleSchema,
   validate,
 } from '@teamchat/validation';
+import { ensureGeneral } from '../channels/service.js';
 
 export const workspacesRouter = Router();
 
@@ -51,6 +52,7 @@ workspacesRouter.post('/workspaces', requireAuth, async (req, res, next) => {
       'INSERT INTO workspace_members(workspace_id, user_id, role, invited_by) VALUES ($1,$2,$3,$4)',
       [ws.id, req.user.id, 'owner', req.user.id]
     );
+    await ensureGeneral(ws.id, req.user.id);
     res.status(201).json({ workspace: publicWorkspace(ws, 'owner') });
   } catch (e) {
     next(e);
@@ -147,6 +149,14 @@ workspacesRouter.post('/workspaces/join', requireAuth, async (req, res, next) =>
       `INSERT INTO workspace_members(workspace_id, user_id, role, invited_by)
        VALUES ($1,$2,$3,$4) ON CONFLICT (workspace_id, user_id) DO NOTHING`,
       [inv.workspace_id, req.user.id, inv.role, inv.created_by]
+    );
+    // Slack parity: every workspace member is in #general.
+    await query(
+      `INSERT INTO channel_members(channel_id, user_id, role)
+       SELECT c.id, $1, 'member' FROM channels c
+       WHERE c.workspace_id = $2 AND c.slug = 'general'
+       ON CONFLICT DO NOTHING`,
+      [req.user.id, inv.workspace_id]
     );
     await query('UPDATE invites SET accepted_at = now() WHERE id = $1', [inv.id]);
     const ws = await getOne('SELECT * FROM workspaces WHERE id = $1', [inv.workspace_id]);

@@ -76,3 +76,21 @@ export const joinSchema = z.object({
 export const memberRoleSchema = z.object({
   role: roleSchema,
 });
+
+// ---- Phase 4: channels ----
+export const channelCreateSchema = z.object({
+  name: z.string().min(1).max(40).regex(/^[a-z0-9-_]+$/),
+  description: z.string().max(500).optional().default(''),
+  topic: z.string().max(250).optional().default(''),
+  isPrivate: z.boolean().optional().default(false),
+});
+
+export const channelPatchSchema = z.object({
+  name: z.string().min(1).max(40).regex(/^[a-z0-9-_]+$/).optional(),
+  description: z.string().max(500).optional(),
+  topic: z.string().max(250).optional(),
+});
+
+export const channelMemberAddSchema = z.object({
+  userId: z.string().uuid(),
+});

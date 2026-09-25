@@ -8,6 +8,7 @@ import { healthRouter } from './modules/health/routes.js';
 import { authRouter } from './modules/auth/routes.js';
 import { usersRouter } from './modules/users/routes.js';
 import { workspacesRouter } from './modules/workspaces/routes.js';
+import { channelsRouter } from './modules/channels/routes.js';
 
 export function createApp() {
   const app = express();
@@ -19,6 +20,7 @@ export function createApp() {
   app.use(authRouter);
   app.use(usersRouter);
   app.use(workspacesRouter);
+  app.use(channelsRouter);
   app.use(notFound);
   app.use(errorHandler);
   return app;
