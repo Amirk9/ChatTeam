@@ -50,11 +50,14 @@ services:
       REDIS_URL: redis://redis:6379
       CORS_ORIGIN: http://localhost:5173
       LOG_LEVEL: info
+      JWT_SECRET: dev-only-change-me
+      REFRESH_TOKEN_EXPIRES_IN_DAYS: 30
     ports:
       - "3000:3000"
     volumes:
+      # Live-mount server source only. No node_modules volume: the image's
+      # /app/node_modules is complete, and we never mount host modules in.
       - ./apps/server/src:/app/apps/server/src
-      - /app/node_modules
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://localhost:3000/version').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
       interval: 10s
@@ -80,7 +83,6 @@ services:
       - ./apps/desktop/renderer:/app/apps/desktop/renderer
       - ./apps/desktop/electron:/app/apps/desktop/electron
       - ./apps/desktop/index.html:/app/apps/desktop/index.html
-      - /app/node_modules
 
   # NOTE (2026-09-25): MinIO removed its free Docker Hub images (repo archived),
   # so this service is opt-in via profile until Phase 7 picks a maintained
