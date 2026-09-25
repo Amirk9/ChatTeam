@@ -119,3 +119,21 @@ export const messagesQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).optional().default(30),
   before: z.string().uuid().optional(),
 });
+
+// ---- Phase 7: files ----
+export const filePresignSchema = z.object({
+  filename: z.string().min(1).max(255),
+  mimeType: z.string().min(1).max(127).optional().default('application/octet-stream'),
+  size: z.number().int().min(1).max(500 * 1024 * 1024).optional(),
+});
+
+export const fileConfirmSchema = z.object({
+  size: z.number().int().min(1).optional(),
+  checksum: z.string().max(64).optional(),
+});
+
+export const fileShareSchema = z.object({
+  channelId: z.string().uuid(),
+  content: z.string().max(8000).optional(),
+  parentMessageId: z.string().uuid().nullable().optional(),
+});

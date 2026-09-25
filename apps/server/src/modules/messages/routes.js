@@ -56,7 +56,7 @@ messagesRouter.post('/channels/:id/messages', requireAuth, requireChannel, async
       const f = await getOne('SELECT * FROM files WHERE id = $1 AND uploader_id = $2 AND workspace_id = $3 AND message_id IS NULL', [fid, req.user.id, req.channel.workspace_id]);
       if (!f) return res.status(400).json({ error: { code: 'BAD_REQUEST', message: 'Unknown or already-attached file' } });
       await query('UPDATE files SET message_id = $1 WHERE id = $2', [msg.id, fid]);
-      await query('INSERT INTO message_attachments(message_id, file_id, filename, mime_type, size, url) VALUES ($1,$2,$3,$4,$5,$6)', [msg.id, f.id, f.filename, f.mime_type, f.size, `/files/${f.id}`]);
+      await query('INSERT INTO message_attachments(message_id, file_id, filename, mime_type, size, url, thumb_url, width, height) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)', [msg.id, f.id, f.filename, f.mime_type, f.size, `/files/${f.id}`, f.thumb_storage_key ? `/files/${f.id}/thumb` : '', f.width, f.height]);
     }
     const full = await getMessage(msg.id);
     const attachments = await loadAttachments([msg.id]);

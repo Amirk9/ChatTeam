@@ -35,6 +35,9 @@ export function serializeMessage(row, { reactions = [], mentionIds = [], attachm
       mimeType: a.mime_type,
       size: Number(a.size),
       url: a.url,
+      thumbUrl: a.thumb_url || null,
+      width: a.width != null ? Number(a.width) : null,
+      height: a.height != null ? Number(a.height) : null,
     })),
   };
 }
@@ -51,7 +54,7 @@ export async function loadReactions(messageIds, meId) {
 
 export async function loadAttachments(messageIds) {
   if (!messageIds.length) return [];
-  const r = await query('SELECT message_id, file_id, filename, mime_type, size, url FROM message_attachments WHERE message_id = ANY($1)', [messageIds]);
+  const r = await query('SELECT message_id, file_id, filename, mime_type, size, url, thumb_url, width, height FROM message_attachments WHERE message_id = ANY($1)', [messageIds]);
   return r.rows;
 }
 

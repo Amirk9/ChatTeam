@@ -1,7 +1,9 @@
-import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, HeadBucketCommand, CreateBucketCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, HeadBucketCommand, CreateBucketCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 // S3-compatible storage. Works against SeaweedFS (local dev), MinIO, or real
 // S3 — swapping targets is config-only (S3_* env). No provider SDKs elsewhere.
+// Interface: put/get/delete/signedUrl (+ presigned PUT via presignPut).
 let client = null;
 let bucket = null;
 let ready = null;
@@ -65,4 +67,28 @@ export async function getObject(key) {
 export async function deleteObject(key) {
   const b = await ensureBucket();
   await getClient().send(new DeleteObjectCommand({ Bucket: b, Key: key }));
+}
+
+// Perm-checked redirect target: short-lived GET URL (plan 07 signed URL).
+export async function signedUrl(key, expiresIn = 3600) {
+  const b = await ensureBucket();
+  return getSignedUrl(getClient(), new GetObjectCommand({ Bucket: b, Key: key }), { expiresIn });
+}
+
+// Direct-upload flow: presigned PUT + confirm.
+// Client: POST presign -> PUT bytes to uploadUrl -> POST /files/:id/confirm.
+export async function presignPut(key, contentType, expiresIn = 900) {
+  const b = await ensureBucket();
+  const url = await getSignedUrl(
+    getClient(),
+    new PutObjectCommand({ Bucket: b, Key: key, ContentType: contentType }),
+    { expiresIn }
+  );
+  return { bucket: b, key, uploadUrl: url, expiresIn };
+}
+
+export async function headObject(key) {
+  const b = await ensureBucket();
+  const res = await getClient().send(new HeadObjectCommand({ Bucket: b, Key: key }));
+  return { size: res.ContentLength, contentType: res.ContentType };
 }

@@ -103,7 +103,7 @@ services:
     command: server -dir=/data -master.volumeSizeLimitMB=256 -s3 -filer
     ports:
       - "8333:8333"
-      - "8888:8888"
+      - "18888:8888"
     volumes:
       - seaweeddata:/data
 

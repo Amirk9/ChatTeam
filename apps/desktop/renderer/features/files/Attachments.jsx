@@ -1,15 +1,22 @@
 import React, { useEffect, useState } from 'react';
-import { downloadFile, fileUrl, formatSize } from '../../services/files.js';
+import { downloadFile, formatSize } from '../../services/files.js';
+import ShareDialog from './ShareDialog.jsx';
 
 const BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
-function useAuthedUrl(fileId) {
+function authedFetch(url) {
+  return fetch(url, { headers: { Authorization: `Bearer ${localStorage.getItem('tc_access')}` } });
+}
+
+function useAuthedUrl(fileId, thumb) {
   const [url, setUrl] = useState(null);
   const [error, setError] = useState('');
   useEffect(() => {
     let alive = true;
     let obj = null;
-    fetch(`${BASE}/files/${fileId}`, { headers: { Authorization: `Bearer ${localStorage.getItem('tc_access')}` } })
+    // Prefer 320px thumbnail for images (plan 07), fall back to original.
+    const target = thumb ? `${BASE}/files/${fileId}/thumb` : `${BASE}/files/${fileId}`;
+    authedFetch(target)
       .then((r) => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.blob();
@@ -24,14 +31,16 @@ function useAuthedUrl(fileId) {
       alive = false;
       if (obj) URL.revokeObjectURL(obj);
     };
-  }, [fileId]);
+  }, [fileId, thumb]);
   return { url, error };
 }
 
-// Slack-style attachment cards: image / PDF / video / audio / generic file.
+// Slack-style attachment cards: image (thumb) / PDF / video / audio / generic.
 export function Attachment({ att }) {
   const [downloading, setDownloading] = useState(false);
-  const { url, error } = useAuthedUrl(att.fileId);
+  const [sharing, setSharing] = useState(false);
+  const isImage = (att.mimeType || '').startsWith('image/');
+  const { url, error } = useAuthedUrl(att.fileId, Boolean(att.thumbUrl) && isImage);
   const kind = (att.mimeType || '').split('/')[0];
 
   async function save() {
@@ -47,12 +56,12 @@ export function Attachment({ att }) {
     <div className="mt-2 max-w-md border border-gray-200 rounded-lg overflow-hidden">
       {error ? <p className="px-3 py-2 text-xs text-red-600">Preview unavailable ({error})</p> : null}
       {!url && !error ? <p className="px-3 py-6 text-xs text-gray-400 text-center">Loading preview...</p> : null}
-      {url && kind === 'image' ? (
+      {url && isImage ? (
         <a href={url} target="_blank" rel="noreferrer">
           <img src={url} alt={att.filename} className="max-h-64 w-auto object-contain bg-gray-50" loading="lazy" />
         </a>
       ) : null}
-      {url && att.mimeType === 'application/pdf' ? (
+      {url && !isImage && att.mimeType === 'application/pdf' ? (
         <iframe src={url} title={att.filename} className="w-full h-64 bg-gray-50" />
       ) : null}
       {url && kind === 'video' ? <video src={url} controls className="max-h-64 w-full bg-black" /> : null}
@@ -61,12 +70,19 @@ export function Attachment({ att }) {
         <span className="text-lg">📄</span>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold truncate">{att.filename}</p>
-          <p className="text-xs text-gray-500">{formatSize(att.size)} · {att.mimeType}</p>
+          <p className="text-xs text-gray-500">
+            {formatSize(att.size)} · {att.mimeType}
+            {att.width && att.height ? ` · ${att.width}×${att.height}` : ''}
+          </p>
         </div>
+        <button onClick={() => setSharing(true)} className="text-xs px-2 py-1 rounded border border-gray-300 bg-white hover:bg-gray-100" title="Share to channel">
+          ↗ Share
+        </button>
         <button onClick={save} disabled={downloading} className="text-xs px-2 py-1 rounded border border-gray-300 bg-white hover:bg-gray-100">
           {downloading ? '...' : '⬇ Download'}
         </button>
       </div>
+      {sharing ? <ShareDialog fileId={att.fileId} filename={att.filename} onClose={() => setSharing(false)} /> : null}
     </div>
   );
 }
@@ -80,4 +96,8 @@ export function AttachmentList({ attachments }) {
   );
 }
 
-export { fileUrl };
+export { BASE as fileBase };
+
+export function fileUrl(fileId) {
+  return `${BASE}/files/${fileId}`;
+}

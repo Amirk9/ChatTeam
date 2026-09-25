@@ -59,6 +59,56 @@ export function fileUrl(fileId) {
   return `${BASE}/files/${fileId}`;
 }
 
+export function thumbUrl(fileId) {
+  return `${BASE}/files/${fileId}/thumb`;
+}
+
+export function downloadUrl(fileId) {
+  return `${BASE}/files/${fileId}?download=1`;
+}
+
+// Share a standalone file into a channel (Slack /share parity).
+export async function shareFile(fileId, { channelId, content, parentMessageId } = {}) {
+  const res = await fetch(`${BASE}/files/${fileId}/share`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token()}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ channelId, content, parentMessageId: parentMessageId || null }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw Object.assign(new Error(data?.error?.message || 'Share failed'), { status: res.status });
+  return data.message;
+}
+
+// Direct-upload flow (presigned PUT): presign -> PUT bytes -> confirm.
+export async function presignedUpload(workspaceId, file, onProgress) {
+  const pre = await fetch(`${BASE}/workspaces/${workspaceId}/files/presign`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token()}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ filename: file.name, mimeType: file.type || 'application/octet-stream', size: file.size }),
+  });
+  const pdata = await pre.json().catch(() => ({}));
+  if (!pre.ok) throw Object.assign(new Error(pdata?.error?.message || 'Presign failed'), { status: pre.status });
+  await new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('PUT', pdata.uploadUrl);
+    xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable && onProgress) onProgress(e.loaded / e.total);
+    };
+    xhr.onload = () => (xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error('Direct upload failed')));
+    xhr.onerror = () => reject(new Error('Direct upload failed'));
+    xhr.send(file);
+  });
+  const conf = await fetch(`${BASE}/files/${pdata.file.id}/confirm`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token()}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({}),
+  });
+  const cdata = await conf.json().catch(() => ({}));
+  if (!conf.ok) throw Object.assign(new Error(cdata?.error?.message || 'Confirm failed'), { status: conf.status });
+  return cdata.file;
+}
+
 // Native open dialog when running in Electron, else null (caller uses <input>).
 export async function pickFiles() {
   if (window.teamchat?.files?.open) {
