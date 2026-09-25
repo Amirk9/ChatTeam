@@ -33,7 +33,13 @@ services:
       timeout: 3s
       retries: 10
 
+  # NOTE (2026-09-25): MinIO removed its free Docker Hub images (repo archived),
+  # so this service is opt-in via profile until Phase 7 picks a maintained
+  # S3-compatible alternative (e.g. SeaweedFS/LocalStack).
+  # Start it explicitly with: docker compose --profile storage up -d
+  # Nothing before Phase 7 (file sharing) needs object storage.
   minio:
+    profiles: ["storage"]
     image: minio/minio:latest
     container_name: teamchat-minio
     restart: unless-stopped
