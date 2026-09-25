@@ -39,6 +39,7 @@ export function publicChannel(ch, extra = {}) {
     isPrivate: ch.is_private,
     isArchived: ch.is_archived,
     memberCount: ch.member_count !== undefined ? Number(ch.member_count) : undefined,
+    unreadCount: ch.unread_count !== undefined ? Number(ch.unread_count) : undefined,
     ...extra,
   };
 }

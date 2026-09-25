@@ -13,6 +13,7 @@ export function notFound(_req, res) {
 // eslint-disable-next-line no-unused-vars
 export function errorHandler(err, req, res, _next) {
   const status = err.status || 500;
+  if (status === 500) console.error('[DEBUG-500]', err);
   res.status(status).json({
     error: {
       code: err.code || (status === 500 ? 'INTERNAL' : 'BAD_REQUEST'),

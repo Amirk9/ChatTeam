@@ -9,6 +9,7 @@ import { authRouter } from './modules/auth/routes.js';
 import { usersRouter } from './modules/users/routes.js';
 import { workspacesRouter } from './modules/workspaces/routes.js';
 import { channelsRouter } from './modules/channels/routes.js';
+import { messagesRouter } from './modules/messages/routes.js';
 
 export function createApp() {
   const app = express();
@@ -21,6 +22,7 @@ export function createApp() {
   app.use(usersRouter);
   app.use(workspacesRouter);
   app.use(channelsRouter);
+  app.use(messagesRouter);
   app.use(notFound);
   app.use(errorHandler);
   return app;

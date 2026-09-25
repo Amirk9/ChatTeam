@@ -5,6 +5,7 @@ import App from './App.jsx';
 import { AuthProvider } from '../stores/auth.store.jsx';
 import { WorkspaceProvider } from '../stores/workspace.store.jsx';
 import { ChannelProvider } from '../stores/channel.store.jsx';
+import { MessageProvider } from '../stores/message.store.jsx';
 import './index.css';
 
 createRoot(document.getElementById('root')).render(
@@ -12,7 +13,9 @@ createRoot(document.getElementById('root')).render(
     <AuthProvider>
       <WorkspaceProvider>
         <ChannelProvider>
-          <App />
+          <MessageProvider>
+            <App />
+          </MessageProvider>
         </ChannelProvider>
       </WorkspaceProvider>
     </AuthProvider>

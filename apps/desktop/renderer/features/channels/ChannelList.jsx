@@ -72,12 +72,15 @@ export function ChannelList() {
           <li key={c.id}>
             <button
               onClick={() => select(workspace.id, c.id)}
-              className={`w-full text-left px-3 py-1 rounded-md text-[15px] truncate ${
+              className={`w-full text-left px-3 py-1 rounded-md text-[15px] truncate flex items-center gap-1 ${
                 c.id === currentId ? 'bg-[#1164A3] text-white' : 'text-white/70 hover:bg-white/10 hover:text-white'
               }`}
             >
-              {c.isPrivate ? '🔒' : '#'} {c.name}
-              {c.isArchived ? <span className="text-xs opacity-60"> (archived)</span> : null}
+              <span className="truncate">{c.isPrivate ? '🔒' : '#'} {c.name}</span>
+              {c.isArchived ? <span className="text-xs opacity-60">(archived)</span> : null}
+              {c.unreadCount > 0 ? (
+                <span className="ml-auto shrink-0 text-[11px] font-bold bg-white text-[#3F0E40] rounded-full px-1.5">{c.unreadCount}</span>
+              ) : null}
             </button>
           </li>
         ))}

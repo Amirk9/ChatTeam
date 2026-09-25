@@ -9,6 +9,10 @@ import { WorkspaceSwitcher } from '../features/workspace/WorkspaceSwitcher.jsx';
 import { ChannelList } from '../features/channels/ChannelList.jsx';
 import { ChannelHeader, MembersDrawer } from '../features/channels/ChannelHeader.jsx';
 import { useChannels } from '../stores/channel.store.jsx';
+import { useMessages } from '../stores/message.store.jsx';
+import MessageFeed from '../features/messages/MessageFeed.jsx';
+import Composer from '../features/messages/Composer.jsx';
+import ThreadPane from '../features/messages/ThreadPane.jsx';
 import Members from '../features/workspace/Members.jsx';
 import Settings from '../features/workspace/Settings.jsx';
 import Profile from '../features/workspace/Profile.jsx';
@@ -33,20 +37,30 @@ function SidebarItem({ to, children }) {
 
 function Home() {
   const { current: workspace } = useWorkspace();
-  const { current, refresh } = useChannels();
-  const [health, setHealth] = useState('checking...');
+  const { current, refresh: refreshChannels } = useChannels();
+  const { byChannel, openThread } = useMessages();
   const [drawer, setDrawer] = useState(false);
+  const [unreadSnap, setUnreadSnap] = useState(0);
+  const [marked, setMarked] = useState(false);
 
   useEffect(() => {
-    refresh(workspace?.id);
+    refreshChannels(workspace?.id);
   }, [workspace?.id]);
 
   useEffect(() => {
-    fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/version`)
-      .then((r) => r.json())
-      .then((b) => setHealth(`${b.name} ${b.version}`))
-      .catch(() => setHealth('unreachable'));
-  }, []);
+    setMarked(false);
+    setUnreadSnap(current?.unreadCount || 0);
+  }, [current?.id]);
+
+  useEffect(() => {
+    if (marked || !current) return;
+    const feed = byChannel[current.id];
+    if (feed && feed.messages.length) {
+      setMarked(true);
+      const t = setTimeout(() => refreshChannels(workspace?.id), 2500);
+      return () => clearTimeout(t);
+    }
+  }, [byChannel, current?.id, marked]);
 
   if (!workspace) {
     return (
@@ -61,31 +75,28 @@ function Home() {
     return <p className="p-8 text-sm text-gray-500">Loading channels...</p>;
   }
 
+  const feed = byChannel[current.id];
+  const msgs = feed?.messages || [];
+  const unreadFrom = unreadSnap > 0 && msgs.length >= unreadSnap ? msgs[Math.max(0, msgs.length - unreadSnap)]?.createdAt : null;
+
+  async function reply(rootId) {
+    await openThread(current.id, rootId);
+  }
+
   return (
-    <>
-      <ChannelHeader onMembers={() => setDrawer(true)} />
-      <div className="flex-1 overflow-y-auto px-5 py-6">
-        <div className="max-w-2xl">
-          <div className="w-14 h-14 rounded-lg bg-[#4A154B] text-white flex items-center justify-center text-2xl font-bold mb-3">
-            {current.isPrivate ? '🔒' : '#'}
-          </div>
-          <h3 className="text-xl font-bold mb-1">Welcome to #{current.name}</h3>
-          <p className="text-sm text-gray-500 mb-4">{current.description || 'This is the very beginning of the channel.'}</p>
-          <p className="text-xs text-gray-400">API: {health} · Preload bridge: {window.teamchat ? window.teamchat.version : 'browser mode'}</p>
-        </div>
+    <div className="flex-1 flex min-h-0 min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 min-h-0">
+        <ChannelHeader onMembers={() => setDrawer(true)} />
+        <MessageFeed channel={current} onReply={reply} unreadFrom={unreadFrom} />
+        {current.isArchived ? (
+          <p className="p-4 text-sm text-gray-500 border-t border-gray-200">This channel is archived and read-only.</p>
+        ) : (
+          <Composer channel={current} workspaceId={workspace.id} onSent={() => refreshChannels(workspace.id)} />
+        )}
       </div>
-      <div className="p-4">
-        <div className="border border-gray-300 rounded-lg">
-          <div className="px-4 py-3 text-sm text-gray-400">Message #{current.name} (Phase 5)</div>
-          <div className="flex items-center gap-3 px-4 py-2 border-t border-gray-100 text-gray-400 text-sm">
-            <span className="cursor-pointer hover:text-gray-600">😊</span>
-            <span className="cursor-pointer hover:text-gray-600">📎</span>
-            <span className="cursor-pointer hover:text-gray-600">@</span>
-          </div>
-        </div>
-      </div>
+      <ThreadPane channel={current} workspaceId={workspace.id} />
       <MembersDrawer open={drawer} onClose={() => setDrawer(false)} />
-    </>
+    </div>
   );
 }
 

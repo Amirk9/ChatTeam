@@ -36,7 +36,10 @@ function workspacesChannelRoutes() {
   channelsRouter.get('/workspaces/:wid/channels', requireAuth, requireWorkspace, async (req, res, next) => {
     try {
       const r = await query(
-        `SELECT c.*, (SELECT COUNT(*)::int FROM channel_members cm WHERE cm.channel_id = c.id) AS member_count
+        `SELECT c.*, (SELECT COUNT(*)::int FROM channel_members cm WHERE cm.channel_id = c.id) AS member_count,
+          (SELECT COUNT(*)::int FROM messages m
+            WHERE m.channel_id = c.id AND m.deleted_at IS NULL AND m.sender_id <> $2
+              AND m.created_at > COALESCE((SELECT last_read_at FROM channel_members cm2 WHERE cm2.channel_id = c.id AND cm2.user_id = $2), '-infinity')) AS unread_count
          FROM channels c
          WHERE c.workspace_id = $1
            AND (c.is_private = false OR EXISTS (SELECT 1 FROM channel_members cm WHERE cm.channel_id = c.id AND cm.user_id = $2))

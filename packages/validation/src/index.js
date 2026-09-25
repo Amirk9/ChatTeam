@@ -94,3 +94,27 @@ export const channelPatchSchema = z.object({
 export const channelMemberAddSchema = z.object({
   userId: z.string().uuid(),
 });
+
+// ---- Phase 5: messaging ----
+export const messageCreateSchema = z.object({
+  content: z.string().min(1).max(8000),
+  parentMessageId: z.string().uuid().nullable().optional(),
+  mentions: z.array(z.string().uuid()).max(50).optional().default([]),
+});
+
+export const messagePatchSchema = z.object({
+  content: z.string().min(1).max(8000),
+});
+
+export const reactionSchema = z.object({
+  emoji: z.string().min(1).max(32),
+});
+
+export const readSchema = z.object({
+  lastReadMessageId: z.string().uuid(),
+});
+
+export const messagesQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).optional().default(30),
+  before: z.string().uuid().optional(),
+});
