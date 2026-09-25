@@ -50,3 +50,29 @@ export function validate(schema, data) {
   }
   return result.data;
 }
+
+// ---- Phase 3: workspaces ----
+export const roleSchema = z.enum(['owner', 'admin', 'moderator', 'member', 'guest', 'bot']);
+
+export const workspaceCreateSchema = z.object({
+  name: z.string().min(1).max(80),
+  slug: z.string().min(2).max(40).regex(/^[a-z0-9-]+$/).optional(),
+});
+
+export const workspacePatchSchema = z.object({
+  name: z.string().min(1).max(80).optional(),
+  iconUrl: z.string().url().max(500).nullable().optional(),
+});
+
+export const inviteCreateSchema = z.object({
+  email: z.string().email().max(255).optional(),
+  role: roleSchema.optional().default('member'),
+});
+
+export const joinSchema = z.object({
+  token: z.string().min(8),
+});
+
+export const memberRoleSchema = z.object({
+  role: roleSchema,
+});

@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { getOne, query } from '../../database/db.js';
 import { publicUser, requireAuth } from '../../common/auth.js';
 import { validate } from '@teamchat/validation';
+import { userDetailHandler } from '../workspaces/routes.js';
 
 export const usersRouter = Router();
 
@@ -18,6 +19,9 @@ const patchSchema = z.object({
 usersRouter.get('/users/me', requireAuth, (req, res) => {
   res.json({ user: publicUser(req.user) });
 });
+
+// GET /users/:id — only within a shared workspace (Slack-style).
+usersRouter.get('/users/:id', requireAuth, userDetailHandler);
 
 // PATCH /users/me
 usersRouter.patch('/users/me', requireAuth, async (req, res, next) => {
