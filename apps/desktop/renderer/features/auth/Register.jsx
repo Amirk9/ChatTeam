@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { authApi } from '../../services/api.js';
 import { useAuth } from '../../stores/auth.store.jsx';
-import { AuthLayout, styles } from './AuthLayout.jsx';
+import { AuthLayout, Field, PrimaryButton } from './AuthLayout.jsx';
 
 export default function Register() {
   const { login } = useAuth();
@@ -11,28 +11,34 @@ export default function Register() {
   const [displayName, setDisplayName] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
 
   async function submit(e) {
     e.preventDefault();
     setError('');
+    setBusy(true);
     try {
       await authApi.register({ email, password, displayName });
       await login({ email, password });
       nav('/');
     } catch (err) {
       setError(err.message || 'Registration failed');
+    } finally {
+      setBusy(false);
     }
   }
 
   return (
-    <AuthLayout title="Create your account" error={error}>
+    <AuthLayout title="Create your account" subtitle="Join your team on TeamChat">
       <form onSubmit={submit}>
-        <input style={styles.input} placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
-        <input style={styles.input} placeholder="Display name" value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
-        <input style={styles.input} placeholder="Password (min 8 chars)" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
-        <button style={styles.btn} type="submit">Create account</button>
+        <Field placeholder="Email address" value={email} onChange={(e) => setEmail(e.target.value)} />
+        <Field placeholder="Display name" value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
+        <Field placeholder="Password (min 8 characters)" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+        <PrimaryButton type="submit" disabled={busy}>{busy ? 'Creating...' : 'Create account'}</PrimaryButton>
       </form>
-      <p><Link to="/login">Back to sign in</Link></p>
+      <p className="mt-4 text-sm text-gray-500">
+        Already have an account? <Link to="/login" className="text-[#1264A3] hover:underline">Sign in</Link>
+      </p>
     </AuthLayout>
   );
 }

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { authApi } from '../../services/api.js';
-import { AuthLayout, styles } from './AuthLayout.jsx';
+import { AuthLayout, Field, PrimaryButton } from './AuthLayout.jsx';
 
 export function ForgotPassword() {
   const [email, setEmail] = useState('');
@@ -20,23 +20,26 @@ export function ForgotPassword() {
   }
 
   return (
-    <AuthLayout title="Reset your password" error={error}>
+    <AuthLayout title="Reset your password" subtitle="We will email you a reset link" error={error}>
       {done ? (
-        <p>If that email exists, a reset link was sent. (Dev: check the server logs for the token.)</p>
+        <div className="rounded-md bg-green-50 border border-green-200 text-green-800 text-sm px-3 py-2">
+          If that email exists, a reset link was sent. (Dev: check the server logs for the token.)
+        </div>
       ) : (
         <form onSubmit={submit}>
-          <input style={styles.input} placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
-          <button style={styles.btn} type="submit">Send reset link</button>
+          <Field placeholder="Email address" value={email} onChange={(e) => setEmail(e.target.value)} />
+          <PrimaryButton type="submit">Send reset link</PrimaryButton>
         </form>
       )}
-      <p><Link to="/login">Back to sign in</Link></p>
+      <p className="mt-4 text-sm"><Link to="/login" className="text-[#1264A3] hover:underline">Back to sign in</Link></p>
     </AuthLayout>
   );
 }
 
 export function ResetPassword() {
   const params = new URLSearchParams(window.location.search);
-  const [token] = useState(params.get('token') || '');
+  const preset = params.get('token') || '';
+  const [token, setToken] = useState(preset);
   const [password, setPassword] = useState('');
   const [done, setDone] = useState(false);
   const [error, setError] = useState('');
@@ -55,12 +58,12 @@ export function ResetPassword() {
   return (
     <AuthLayout title="Choose a new password" error={error}>
       {done ? (
-        <p>Password updated. <Link to="/login">Sign in</Link></p>
+        <p className="text-sm">Password updated. <Link to="/login" className="text-[#1264A3] hover:underline">Sign in</Link></p>
       ) : (
         <form onSubmit={submit}>
-          <input style={styles.input} placeholder="Reset token" value={token} readOnly={Boolean(params.get('token'))} onChange={() => {}} />
-          <input style={styles.input} placeholder="New password (min 8 chars)" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
-          <button style={styles.btn} type="submit">Reset password</button>
+          <Field placeholder="Reset token" value={token} readOnly={Boolean(preset)} onChange={(e) => setToken(e.target.value)} />
+          <Field placeholder="New password (min 8 characters)" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+          <PrimaryButton type="submit">Reset password</PrimaryButton>
         </form>
       )}
     </AuthLayout>
@@ -82,9 +85,9 @@ export function VerifyEmail() {
 
   return (
     <AuthLayout title="Email verification" error={state === 'bad' ? 'Invalid or expired link.' : ''}>
-      {state === 'pending' && <p>Verifying...</p>}
-      {state === 'ok' && <p>Email verified. <Link to="/login">Sign in</Link></p>}
-      {state === 'missing' && <p>No token in this link.</p>}
+      {state === 'pending' && <p className="text-sm text-gray-500">Verifying...</p>}
+      {state === 'ok' && <p className="text-sm">Email verified. <Link to="/login" className="text-[#1264A3] hover:underline">Sign in</Link></p>}
+      {state === 'missing' && <p className="text-sm text-gray-500">No token in this link.</p>}
     </AuthLayout>
   );
 }
