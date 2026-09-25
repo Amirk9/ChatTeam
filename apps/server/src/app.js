@@ -16,6 +16,12 @@ import { filesRouter } from './modules/files/routes.js';
 import { searchRouter } from './modules/search/routes.js';
 import { dmsRouter } from './modules/dms/routes.js';
 import { crashesRouter } from './modules/crashes/routes.js';
+import { callsRouter } from './modules/calls/routes.js';
+import { canvasRouter } from './modules/canvas/routes.js';
+import { botsRouter } from './modules/bots/routes.js';
+import { integrationsRouter } from './modules/integrations/routes.js';
+import { workflowsRouter } from './modules/workflows/routes.js';
+import { adminRouter } from './modules/admin/routes.js';
 
 export function createApp() {
   const app = express();
@@ -35,6 +41,12 @@ export function createApp() {
   app.use(searchRouter);
   app.use(dmsRouter);
   app.use(crashesRouter);
+  app.use(callsRouter);
+  app.use(canvasRouter);
+  app.use(botsRouter);
+  app.use(integrationsRouter);
+  app.use(workflowsRouter);
+  app.use(adminRouter);
   app.use(notFound);
   app.use(errorHandler);
   return app;

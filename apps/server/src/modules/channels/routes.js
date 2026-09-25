@@ -10,6 +10,7 @@ import {
   validate,
 } from '@teamchat/validation';
 import { publish } from '../../websocket/index.js';
+import { auditLog } from '../admin/routes.js';
 
 export const channelsRouter = Router();
 
@@ -206,6 +207,7 @@ channelsRouter.delete('/channels/:id', requireAuth, requireChannel, async (req, 
     if (!ok) return res.status(403).json({ error: { code: 'FORBIDDEN', message: 'Requires DELETE_CHANNEL' } });
     if (req.channel.slug === 'general') return res.status(403).json({ error: { code: 'FORBIDDEN', message: '#general cannot be deleted' } });
     await query('DELETE FROM channels WHERE id = $1', [req.channel.id]);
+    await auditLog(req.channel.workspace_id, req.user.id, 'channel.deleted', 'channel', req.channel.id, { name: req.channel.name });
     await publish({ type: 'channel.deleted', payload: { id: req.channel.id, workspaceId: req.channel.workspace_id } }, [`workspace:${req.channel.workspace_id}`]);
     res.json({ ok: true });
   } catch (e) {

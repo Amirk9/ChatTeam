@@ -20,6 +20,7 @@ import {
   validate,
 } from '@teamchat/validation';
 import { ensureGeneral } from '../channels/service.js';
+import { auditLog } from '../admin/routes.js';
 
 export const workspacesRouter = Router();
 
@@ -198,6 +199,7 @@ workspacesRouter.patch('/workspaces/:id/members/:userId', requireAuth, requireWo
       return res.status(403).json({ error: { code: 'FORBIDDEN', message: 'Cannot grant or change a role at/above your own' } });
     }
     await query('UPDATE workspace_members SET role = $1 WHERE workspace_id = $2 AND user_id = $3', [role, req.workspace.id, req.params.userId]);
+    await auditLog(req.workspace.id, req.user.id, 'member.role_changed', 'user', req.params.userId, { from: target.role, to: role });
     res.json({ ok: true, role });
   } catch (e) {
     next(e);
@@ -219,6 +221,7 @@ workspacesRouter.delete('/workspaces/:id/members/:userId', requireAuth, requireW
       if (owners.n <= 1) return res.status(403).json({ error: { code: 'FORBIDDEN', message: 'A workspace needs at least one owner' } });
     }
     await query('DELETE FROM workspace_members WHERE workspace_id = $1 AND user_id = $2', [req.workspace.id, req.params.userId]);
+    await auditLog(req.workspace.id, req.user.id, leaving ? 'member.left' : 'member.removed', 'user', req.params.userId, {});
     res.json({ ok: true });
   } catch (e) {
     next(e);

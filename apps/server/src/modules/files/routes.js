@@ -6,7 +6,7 @@ import { requireAuth } from '../../common/auth.js';
 import { hasPermission } from '../workspaces/permissions.js';
 import { putObject, getObject, deleteObject, signedUrl, presignPut, headObject } from './storage.js';
 import { imageDims, makeThumb } from './thumbs.js';
-import { getMessage, serializeMessage, resolveMentionEmails, loadAttachments } from '../messages/service.js';
+import { getMessage, serializeMessage, resolveMentionEmails, loadAttachments, withButtons } from '../messages/service.js';
 import { publish } from '../../websocket/index.js';
 import { notifyUser } from '../notifications/routes.js';
 import { filePresignSchema, fileShareSchema, validate } from '@teamchat/validation';
@@ -368,7 +368,7 @@ filesRouter.post('/files/:id/share', requireAuth, async (req, res, next) => {
       }
     }
     const full = await getMessage(msg.id);
-    const out = serializeMessage(full, { mentionIds: all, attachments: await loadAttachments([msg.id]) });
+    const out = (await withButtons([serializeMessage(full, { mentionIds: all, attachments: await loadAttachments([msg.id]) })]))[0];
     await publish({ type: 'message.created', payload: { message: out } }, [`channel:${channelId}`]);
     res.status(201).json({ message: out });
   } catch (e) {

@@ -1,7 +1,7 @@
 import { getOne, query } from '../../database/db.js';
 
 // Serialize a message row (+ sender join) into the API shape.
-export function serializeMessage(row, { reactions = [], mentionIds = [], attachments = [] } = {}) {
+export function serializeMessage(row, { reactions = [], mentionIds = [], attachments = [], buttonsMap = {} } = {}) {
   const deleted = Boolean(row.deleted_at);
   const counts = {};
   const mine = new Set();
@@ -29,6 +29,7 @@ export function serializeMessage(row, { reactions = [], mentionIds = [], attachm
     replyCount: Number(row.reply_count || 0),
     reactions: Object.entries(counts).map(([emoji, count]) => ({ emoji, count, me: mine.has(emoji) })),
     mentions: mentionIds,
+    buttons: buttonsMap[row.id] || [],
     attachments: attachments.filter((a) => a.message_id === row.id).map((a) => ({
       fileId: a.file_id,
       filename: a.filename,
@@ -58,7 +59,23 @@ export async function loadAttachments(messageIds) {
   return r.rows;
 }
 
-export async function loadMentions(messageIds) {  if (!messageIds.length) return {};
+export async function loadButtons(messageIds) {
+  if (!messageIds.length) return {};
+  const r = await query('SELECT message_id, action_id, label FROM message_buttons WHERE message_id = ANY($1)', [messageIds]);
+  const map = {};
+  for (const row of r.rows) {
+    (map[row.message_id] = map[row.message_id] || []).push({ id: row.action_id, label: row.label });
+  }
+  return map;
+}
+
+// Batch-attach interactive buttons to already-serialized messages.
+export async function withButtons(serialized) {
+  const map = await loadButtons(serialized.map((m) => m.id));
+  return serialized.map((m) => ({ ...m, buttons: map[m.id] || m.buttons || [] }));
+}
+export async function loadMentions(messageIds) {
+  if (!messageIds.length) return {};
   const r = await query('SELECT message_id, mentioned_user_id FROM message_mentions WHERE message_id = ANY($1)', [messageIds]);
   const map = {};
   for (const row of r.rows) {

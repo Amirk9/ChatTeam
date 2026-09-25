@@ -93,12 +93,13 @@ export async function dmMemberList(dmId) {
   }));
 }
 
-// Serialize a DM message row fully (reactions/mentions/attachments included).
+// Serialize a DM message row fully (reactions/mentions/attachments/buttons included).
 export async function serializeDmMessage(msgId, meId, dmId) {
-  const { loadReactions, loadMentions, loadAttachments } = await import('../messages/service.js');
+  const { loadReactions, loadMentions, loadAttachments, withButtons } = await import('../messages/service.js');
   const full = await getMessage(msgId);
   const [reactions, mentions, attachments] = await Promise.all([
     loadReactions([msgId], meId), loadMentions([msgId]), loadAttachments([msgId]),
   ]);
-  return withDmHome(serializeMessage(full, { reactions, mentionIds: mentions[msgId] || [], attachments }), dmId);
+  const [out] = await withButtons([withDmHome(serializeMessage(full, { reactions, mentionIds: mentions[msgId] || [], attachments }), dmId)]);
+  return out;
 }

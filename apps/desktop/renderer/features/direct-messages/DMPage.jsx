@@ -10,6 +10,8 @@ import { workspaceApi } from '../../services/workspaces.js';
 import MessageItem, { dayOf } from '../messages/MessageItem.jsx';
 import Composer from '../messages/Composer.jsx';
 import ThreadPane from '../messages/ThreadPane.jsx';
+import HuddleButton from '../calls/HuddleButton.jsx';
+import CallBar from '../calls/CallBar.jsx';
 
 // Slack-style DM pane: header + feed + composer + read receipts + thread.
 export default function DMPage() {
@@ -87,6 +89,7 @@ export default function DMPage() {
               {seenBy.length ? ` · ✓✓ Seen by ${seenBy.join(', ')}` : ''}
             </p>
           </div>
+          <HuddleButton workspaceId={workspace.id} target={{ dmConversationId: dm.id }} />
           <button onClick={() => setManage(true)} className="text-xs px-2 py-1 rounded border border-gray-300 hover:bg-gray-50">Members</button>
         </div>
 
@@ -123,6 +126,7 @@ export default function DMPage() {
           ) : null}
         </div>
 
+        <CallBar />
         <Composer dm={{ id: dm.id, name: title }} workspaceId={workspace.id} onSent={() => refresh(workspace.id)} />
       </div>
       <ThreadPane channel={{ id: dm.id, name: title }} dm={{ id: dm.id, name: title }} workspaceId={workspace.id} />

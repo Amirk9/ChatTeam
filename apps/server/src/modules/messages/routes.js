@@ -10,6 +10,7 @@ import {
   loadReactions,
   loadMentions,
   loadAttachments,
+  withButtons,
   resolveMentionEmails,
   filterWorkspaceMembers,
 } from './service.js';
@@ -23,6 +24,8 @@ import {
 } from '@teamchat/validation';
 import { publish } from '../../websocket/index.js';
 import { notifyUser } from '../notifications/routes.js';
+import { executeSlash } from '../bots/commands.js';
+import { dispatchIntegrationEvent } from '../integrations/routes.js';
 
 export const messagesRouter = Router();
 
@@ -62,6 +65,17 @@ messagesRouter.post('/channels/:id/messages', requireAuth, requireChannel, async
     const attachments = await loadAttachments([msg.id]);
     const out = serializeMessage(full, { mentionIds: all, attachments });
     await publish({ type: 'message.created', payload: { message: out } }, [`channel:${req.channel.id}`]);
+    // Phase 11C: slash commands (Slack /command parity) + outgoing webhooks.
+    let slash = null;
+    if (content.startsWith('/')) {
+      try {
+        const r = await executeSlash({ workspaceId: req.channel.workspace_id, scope: { channelId: req.channel.id }, user: req.user, text: content });
+        if (r?.handled) slash = r.ephemeral ? { ephemeral: r.ephemeral } : { message: r.message };
+      } catch (err) {
+        slash = { error: err.message };
+      }
+    }
+    dispatchIntegrationEvent(req.channel.workspace_id, 'message.created', { message: out }).catch(() => {});
     // Notifications: mentions + thread replies (Slack rules).
     for (const uid of all) {
       await notifyUser(uid, req.channel.workspace_id, 'mention', msg.id);
@@ -72,7 +86,7 @@ messagesRouter.post('/channels/:id/messages', requireAuth, requireChannel, async
         await notifyUser(parent.sender_id, req.channel.workspace_id, 'thread_reply', msg.id);
       }
     }
-    res.status(201).json({ message: out });
+    res.status(201).json({ message: (await withButtons([out]))[0], ...(slash ? { slash } : {}) });
   } catch (e) {
     next(e);
   }
@@ -104,7 +118,7 @@ messagesRouter.get('/channels/:id/messages', requireAuth, requireChannel, async 
     const ids = page.map((m) => m.id);
     const [reactions, mentions, attachments] = await Promise.all([loadReactions(ids, req.user.id), loadMentions(ids), loadAttachments(ids)]);
     res.json({
-      messages: page.map((m) => serializeMessage(m, { reactions, mentionIds: mentions[m.id] || [], attachments })),
+      messages: await withButtons(page.map((m) => serializeMessage(m, { reactions, mentionIds: mentions[m.id] || [], attachments }))),
       nextCursor: hasMore ? page[0].id : null,
     });
   } catch (e) {
@@ -136,7 +150,7 @@ messagesRouter.get('/messages/:id/thread', requireAuth, async (req, res, next) =
     });
     res.json({
       ...(dm ? { dmConversationId: dm.id } : { channelId: channel.id }),
-      messages,
+      messages: await withButtons(messages),
     });
   } catch (e) {
     next(e);
@@ -164,11 +178,11 @@ messagesRouter.patch('/messages/:id', requireAuth, async (req, res, next) => {
     if (dm) {
       const out = { ...base, channelId: null, dmConversationId: dm.id };
       await publish({ type: 'dm.message.updated', payload: { message: out } }, [`dm:${dm.id}`]);
-      return res.json({ message: out });
+      return res.json({ message: (await withButtons([out]))[0] });
     }
     const out = base;
     await publish({ type: 'message.updated', payload: { message: out } }, [`channel:${channel.id}`]);
-    res.json({ message: out });
+    res.json({ message: (await withButtons([out]))[0] });
   } catch (e) {
     next(e);
   }
@@ -209,7 +223,7 @@ messagesRouter.post('/messages/:id/reactions', requireAuth, async (req, res, nex
       const full = await getMessage(message.id);
       const out = { ...serializeMessage(full, { reactions, attachments: await loadAttachments([message.id]) }), channelId: null, dmConversationId: dm.id };
       await publish({ type: 'dm.reaction.added', payload: { messageId: message.id, dmId: dm.id, emoji, userId: req.user.id } }, [`dm:${dm.id}`]);
-      return res.status(201).json({ message: out });
+      return res.status(201).json({ message: (await withButtons([out]))[0] });
     }
     if (!chRole) return res.status(403).json({ error: { code: 'FORBIDDEN', message: 'Join the channel to react' } });
     if (channel.is_archived) return res.status(403).json({ error: { code: 'ARCHIVED', message: 'Channel is archived' } });
@@ -219,7 +233,7 @@ messagesRouter.post('/messages/:id/reactions', requireAuth, async (req, res, nex
     const reactions = await loadReactions([message.id], req.user.id);
     const full = await getMessage(message.id);
     await publish({ type: 'reaction.added', payload: { messageId: message.id, channelId: channel.id, emoji, userId: req.user.id } }, [`channel:${channel.id}`]);
-    res.status(201).json({ message: serializeMessage(full, { reactions, attachments: await loadAttachments([message.id]) }) });
+    res.status(201).json({ message: (await withButtons([serializeMessage(full, { reactions, attachments: await loadAttachments([message.id]) })]))[0] });
   } catch (e) {
     next(e);
   }
@@ -236,7 +250,7 @@ messagesRouter.delete('/messages/:id/reactions', requireAuth, async (req, res, n
       const full = await getMessage(message.id);
       const out = { ...serializeMessage(full, { reactions, attachments: await loadAttachments([message.id]) }), channelId: null, dmConversationId: dm.id };
       await publish({ type: 'dm.reaction.removed', payload: { messageId: message.id, dmId: dm.id, emoji, userId: req.user.id } }, [`dm:${dm.id}`]);
-      return res.json({ message: out });
+      return res.json({ message: (await withButtons([out]))[0] });
     }
     if (!chRole) return res.status(403).json({ error: { code: 'FORBIDDEN', message: 'Join the channel first' } });
     const { emoji } = validate(reactionSchema, req.query);
@@ -244,7 +258,7 @@ messagesRouter.delete('/messages/:id/reactions', requireAuth, async (req, res, n
     const reactions = await loadReactions([message.id], req.user.id);
     const full = await getMessage(message.id);
     await publish({ type: 'reaction.removed', payload: { messageId: message.id, channelId: message.channel_id, emoji, userId: req.user.id } }, [`channel:${message.channel_id}`]);
-    res.json({ message: serializeMessage(full, { reactions, attachments: await loadAttachments([message.id]) }) });
+    res.json({ message: (await withButtons([serializeMessage(full, { reactions, attachments: await loadAttachments([message.id]) })]))[0] });
   } catch (e) {
     next(e);
   }

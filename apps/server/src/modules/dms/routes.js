@@ -9,6 +9,7 @@ import {
   loadReactions,
   loadMentions,
   loadAttachments,
+  withButtons,
   resolveMentionEmails,
   filterWorkspaceMembers,
 } from '../messages/service.js';
@@ -24,6 +25,8 @@ import {
 import { publish } from '../../websocket/index.js';
 import { getIO } from '../../websocket/index.js';
 import { notifyUser } from '../notifications/routes.js';
+import { executeSlash } from '../bots/commands.js';
+import { dispatchIntegrationEvent } from '../integrations/routes.js';
 
 export const dmsRouter = Router();
 
@@ -205,7 +208,7 @@ dmsRouter.get('/dms/:id/messages', requireAuth, requireDm, async (req, res, next
     const ids = page.map((m) => m.id);
     const [reactions, mentions, attachments] = await Promise.all([loadReactions(ids, req.user.id), loadMentions(ids), loadAttachments(ids)]);
     res.json({
-      messages: page.map((m) => withDmHome(serializeMessage(m, { reactions, mentionIds: mentions[m.id] || [], attachments }), req.dm.id)),
+      messages: await withButtons(page.map((m) => withDmHome(serializeMessage(m, { reactions, mentionIds: mentions[m.id] || [], attachments }), req.dm.id))),
       nextCursor: hasMore ? page[0].id : null,
     });
   } catch (e) {
@@ -244,6 +247,17 @@ dmsRouter.post('/dms/:id/messages', requireAuth, requireDm, async (req, res, nex
     const attachments = await loadAttachments([msg.id]);
     const out = withDmHome(serializeMessage(full, { mentionIds: all, attachments }), req.dm.id);
     await publish({ type: 'dm.message.created', payload: { message: out } }, [`dm:${req.dm.id}`]);
+    // Phase 11C: slash commands + outgoing webhooks (same as channels).
+    let slash = null;
+    if (content.startsWith('/')) {
+      try {
+        const r = await executeSlash({ workspaceId: req.dm.workspace_id, scope: { dmConversationId: req.dm.id }, user: req.user, text: content });
+        if (r?.handled) slash = r.ephemeral ? { ephemeral: r.ephemeral } : { message: r.message };
+      } catch (err) {
+        slash = { error: err.message };
+      }
+    }
+    dispatchIntegrationEvent(req.dm.workspace_id, 'dm.message.created', { message: out }).catch(() => {});
     // Slack parity: every DM notifies the other members; mentions/thread notify too.
     const others = (await dmMemberList(req.dm.id)).map((m) => m.userId).filter((id) => id !== req.user.id);
     for (const uid of others) {
@@ -258,7 +272,7 @@ dmsRouter.post('/dms/:id/messages', requireAuth, requireDm, async (req, res, nex
         await notifyUser(parent.sender_id, req.dm.workspace_id, 'thread_reply', msg.id);
       }
     }
-    res.status(201).json({ message: out });
+    res.status(201).json({ message: (await withButtons([out]))[0], ...(slash ? { slash } : {}) });
   } catch (e) {
     next(e);
   }

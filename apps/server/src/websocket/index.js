@@ -200,6 +200,48 @@ export function initRealtime(httpServer, corsOrigin) {
       } catch {}
     });
 
+    // Phase 11A: WebRTC signaling relay (SDP offer/answer + ICE) + call rooms.
+    // Server never sees media — it only introduces peers already on the call.
+    socket.on('call.join', async ({ callId }, ack) => {
+      try {
+        const part = await getOne('SELECT 1 FROM call_participants WHERE call_id = $1 AND user_id = $2 AND left_at IS NULL', [callId, user.id]);
+        if (!part) return typeof ack === 'function' && ack({ ok: false });
+        socket.join(`call:${callId}`);
+        socket.to(`call:${callId}`).emit('event', { type: 'call.peer-joined', payload: { callId, userId: user.id } });
+        if (typeof ack === 'function') ack({ ok: true });
+      } catch {}
+    });
+    socket.on('call.leave', async ({ callId }) => {
+      socket.leave(`call:${callId}`);
+      socket.to(`call:${callId}`).emit('event', { type: 'call.peer-left', payload: { callId, userId: user.id } });
+    });
+    socket.on('call.signal', async ({ callId, to, signal }) => {
+      try {
+        if (!callId || !to || !signal) return;
+        const [me, peer] = await Promise.all([
+          getOne('SELECT 1 FROM call_participants WHERE call_id = $1 AND user_id = $2 AND left_at IS NULL', [callId, user.id]),
+          getOne('SELECT 1 FROM call_participants WHERE call_id = $1 AND user_id = $2 AND left_at IS NULL', [callId, to]),
+        ]);
+        if (!me || !peer) return;
+        io.to(`user:${to}`).emit('event', { type: 'call.signal', payload: { callId, from: user.id, signal } });
+      } catch {}
+    });
+
+    // Phase 11B: canvas rooms (block edits also persist via REST + fan-out).
+    socket.on('canvas.join', async ({ canvasId }, ack) => {
+      try {
+        const cv = await getOne('SELECT workspace_id FROM canvas WHERE id = $1', [canvasId]);
+        if (!cv) return typeof ack === 'function' && ack({ ok: false });
+        const mem = await getOne('SELECT 1 FROM workspace_members WHERE workspace_id = $1 AND user_id = $2', [cv.workspace_id, user.id]);
+        if (!mem) return typeof ack === 'function' && ack({ ok: false });
+        socket.join(`canvas:${canvasId}`);
+        if (typeof ack === 'function') ack({ ok: true });
+      } catch {}
+    });
+    socket.on('canvas.leave', async ({ canvasId }) => {
+      socket.leave(`canvas:${canvasId}`);
+    });
+
     socket.on('disconnect', async () => {
       try {
         const memberships = await query('SELECT workspace_id FROM workspace_members WHERE user_id = $1', [user.id]);

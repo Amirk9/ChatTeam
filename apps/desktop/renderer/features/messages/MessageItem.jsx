@@ -3,6 +3,7 @@ import { useAuth } from '../../stores/auth.store.jsx';
 import { useMessages } from '../../stores/message.store.jsx';
 import { useDMs } from '../../stores/dm.store.jsx';
 import { messageApi } from '../../services/messages.js';
+import { botsApi } from '../../services/advanced.js';
 import { Markdown } from './Markdown.jsx';
 import { AttachmentList } from '../files/Attachments.jsx';
 
@@ -36,7 +37,17 @@ export default function MessageItem({ message, channelId, onReply, compact, high
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(message.content || '');
   const [picking, setPicking] = useState(false);
+  const [clicking, setClicking] = useState(null);
   const mine = message.sender.id === user.id;
+
+  async function clickButton(b) {
+    setClicking(b.id);
+    try {
+      await botsApi.click(message.id, b.id);
+    } finally {
+      setClicking(null);
+    }
+  }
 
   async function toggle(emoji, has) {
     const updated = has
@@ -108,6 +119,16 @@ export default function MessageItem({ message, channelId, onReply, compact, high
                 <button key={r.emoji} onClick={() => toggle(r.emoji, r.me)}
                   className={`text-xs px-2 py-0.5 rounded-full border ${r.me ? 'bg-blue-50 border-blue-400' : 'bg-gray-50 border-gray-200 hover:border-gray-400'}`}>
                   {r.emoji} {r.count}
+                </button>
+              ))}
+            </div>
+          ) : null}
+          {message.buttons?.length ? (
+            <div className="flex flex-wrap gap-1 mt-1">
+              {message.buttons.map((b) => (
+                <button key={b.id} onClick={() => clickButton(b)} disabled={clicking === b.id}
+                  className="text-xs px-3 py-1 rounded-md border border-[#611f69] text-[#611f69] hover:bg-[#611f69] hover:text-white disabled:opacity-50">
+                  {clicking === b.id ? '…' : b.label}
                 </button>
               ))}
             </div>

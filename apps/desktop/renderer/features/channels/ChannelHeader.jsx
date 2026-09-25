@@ -3,6 +3,7 @@ import { useWorkspace } from '../../stores/workspace.store.jsx';
 import { useChannels } from '../../stores/channel.store.jsx';
 import { usePresence } from '../../stores/presence.store.jsx';
 import { channelApi } from '../../services/channels.js';
+import HuddleButton from '../calls/HuddleButton.jsx';
 import { Field, PrimaryButton } from '../auth/AuthLayout.jsx';
 
 // Slack-style channel header + members drawer + settings actions.
@@ -57,6 +58,7 @@ export function ChannelHeader({ onMembers }) {
         <h2 className="font-bold text-lg">{current.isPrivate ? '🔒' : '#'} {current.name}</h2>
         {current.isArchived ? <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full font-semibold">archived</span> : null}
         <div className="flex-1" />
+        <HuddleButton workspaceId={workspace?.id} target={{ channelId: current.id }} />
         <button onClick={onMembers} className="text-xs px-2 py-1 rounded border border-gray-300 hover:bg-gray-100">
           👥 {current.memberCount ?? ''} members
         </button>

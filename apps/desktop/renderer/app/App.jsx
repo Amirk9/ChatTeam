@@ -16,6 +16,7 @@ import ThreadPane from '../features/messages/ThreadPane.jsx';
 import Bell from '../features/notifications/Bell.jsx';
 import SearchBar from '../features/search/SearchBar.jsx';
 import { DMList } from '../features/direct-messages/DMList.jsx';
+import CallBar from '../features/calls/CallBar.jsx';
 import OfflineBanner from '../features/system/OfflineBanner.jsx';
 import UpdateBanner from '../features/system/UpdateBanner.jsx';
 import { usePresence } from '../stores/presence.store.jsx';
@@ -27,6 +28,12 @@ const DMPage = lazy(() => import('../features/direct-messages/DMPage.jsx'));
 const Members = lazy(() => import('../features/workspace/Members.jsx'));
 const Settings = lazy(() => import('../features/workspace/Settings.jsx'));
 const Profile = lazy(() => import('../features/workspace/Profile.jsx'));
+// Phase 11: advanced chunks stay lazy (calls/canvas/apps/workflows/admin).
+const CanvasPage = lazy(() => import('../features/canvas/CanvasPage.jsx'));
+const CanvasListPage = lazy(() => import('../features/canvas/CanvasPage.jsx').then((m) => ({ default: m.CanvasList })));
+const AppsPage = lazy(() => import('../features/apps/AppsPage.jsx'));
+const WorkflowsPage = lazy(() => import('../features/workflows/WorkflowsPage.jsx'));
+const AdminPage = lazy(() => import('../features/admin/AdminPage.jsx'));
 
 function RouteFallback() {
   return <p className="p-8 text-sm text-gray-500">Loading…</p>;
@@ -117,6 +124,7 @@ function Home() {
       <div className="flex-1 flex flex-col min-w-0 min-h-0">
         <ChannelHeader onMembers={() => setDrawer(true)} />
         <MessageFeed channel={current} onReply={reply} unreadFrom={unreadFrom} />
+        <CallBar />
         {current.isArchived ? (
           <p className="p-4 text-sm text-gray-500 border-t border-gray-200">This channel is archived and read-only.</p>
         ) : (
@@ -186,6 +194,13 @@ function Shell() {
             </ul>
             <p className="px-3 pb-1 text-xs font-semibold text-white/50 uppercase tracking-wide">Direct messages</p>
             <DMList />
+            <p className="px-3 pb-1 pt-3 text-xs font-semibold text-white/50 uppercase tracking-wide">Apps & tools</p>
+            <ul className="space-y-0.5 mb-4">
+              <SidebarItem to="/canvases">📄 Canvas</SidebarItem>
+              <SidebarItem to="/apps">🔌 Apps</SidebarItem>
+              <SidebarItem to="/workflows">⚙️ Workflows</SidebarItem>
+              <SidebarItem to="/admin">🛡️ Admin</SidebarItem>
+            </ul>
           </nav>
           <div className="p-3 border-t border-white/10 flex items-center gap-2">
             <div className="w-8 h-8 rounded-md bg-white/20 flex items-center justify-center font-bold">
@@ -205,6 +220,11 @@ function Shell() {
             <Route path="/" element={<Home />} />
             <Route path="/dm/:id" element={<DMPage />} />
             <Route path="/search" element={<SearchPage />} />
+            <Route path="/canvases" element={<CanvasListPage />} />
+            <Route path="/canvas/:id" element={<CanvasPage />} />
+            <Route path="/apps" element={<AppsPage />} />
+            <Route path="/workflows" element={<WorkflowsPage />} />
+            <Route path="/admin" element={<AdminPage />} />
             <Route path="/members" element={<Members />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/profile" element={<Profile />} />
