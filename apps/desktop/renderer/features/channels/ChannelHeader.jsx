@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useWorkspace } from '../../stores/workspace.store.jsx';
 import { useChannels } from '../../stores/channel.store.jsx';
+import { usePresence } from '../../stores/presence.store.jsx';
 import { channelApi } from '../../services/channels.js';
 import { Field, PrimaryButton } from '../auth/AuthLayout.jsx';
 
@@ -81,6 +82,7 @@ export function ChannelHeader({ onMembers }) {
 
 export function MembersDrawer({ open, onClose }) {
   const { current } = useChannels();
+  const { presence } = usePresence();
   const [members, setMembers] = useState([]);
 
   useEffect(() => {
@@ -97,8 +99,12 @@ export function MembersDrawer({ open, onClose }) {
       <ul className="space-y-2">
         {members.map((m) => (
           <li key={m.id} className="flex items-center gap-2 text-sm">
-            <div className="w-7 h-7 rounded bg-[#4A154B] text-white flex items-center justify-center text-xs font-bold">
-              {(m.display_name || '?').slice(0, 1).toUpperCase()}
+            <div className="relative">
+              <div className="w-7 h-7 rounded bg-[#4A154B] text-white flex items-center justify-center text-xs font-bold">
+                {(m.display_name || '?').slice(0, 1).toUpperCase()}
+              </div>
+              <span title={presence[m.id]?.state || 'OFFLINE'}
+                className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white ${presence[m.id] ? 'bg-green-500' : 'bg-gray-300'}`} />
             </div>
             <div className="min-w-0">
               <p className="font-semibold truncate">{m.display_name}</p>

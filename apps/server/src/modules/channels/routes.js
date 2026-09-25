@@ -9,6 +9,7 @@ import {
   channelMemberAddSchema,
   validate,
 } from '@teamchat/validation';
+import { publish } from '../../websocket/index.js';
 
 export const channelsRouter = Router();
 
@@ -26,6 +27,7 @@ function workspacesChannelRoutes() {
       const exists = await getOne('SELECT id FROM channels WHERE workspace_id = $1 AND name = $2', [req.workspace.id, input.name]);
       if (exists) return res.status(409).json({ error: { code: 'NAME_TAKEN', message: 'Channel name already in use' } });
       const ch = await createChannel(req.workspace.id, req.user.id, input);
+      await publish({ type: 'channel.created', payload: { channel: publicChannel(ch, { memberCount: 1 }) } }, [`workspace:${req.workspace.id}`]);
       res.status(201).json({ channel: publicChannel(ch, { memberCount: 1 }) });
     } catch (e) {
       next(e);
@@ -92,6 +94,7 @@ channelsRouter.patch('/channels/:id', requireAuth, requireChannel, async (req, r
     if (!sets.length) return res.status(400).json({ error: { code: 'BAD_REQUEST', message: 'Nothing to update' } });
     params.push(req.channel.id);
     const ch = await getOne(`UPDATE channels SET ${sets.join(', ')}, updated_at = now() WHERE id = $${params.length} RETURNING *`, params);
+    await publish({ type: 'channel.updated', payload: { channel: publicChannel(ch) } }, [`workspace:${ch.workspace_id}`]);
     res.json({ channel: publicChannel(ch) });
   } catch (e) {
     next(e);
@@ -131,6 +134,7 @@ channelsRouter.post('/channels/:id/archive', requireAuth, requireChannel, async 
     if (!ok) return res.status(403).json({ error: { code: 'FORBIDDEN', message: 'Requires MANAGE_WORKSPACE' } });
     if (req.channel.slug === 'general') return res.status(403).json({ error: { code: 'FORBIDDEN', message: '#general cannot be archived' } });
     await query('UPDATE channels SET is_archived = true WHERE id = $1', [req.channel.id]);
+    await publish({ type: 'channel.archived', payload: { id: req.channel.id, workspaceId: req.channel.workspace_id } }, [`workspace:${req.channel.workspace_id}`]);
     res.json({ ok: true });
   } catch (e) {
     next(e);
@@ -142,6 +146,7 @@ channelsRouter.post('/channels/:id/unarchive', requireAuth, requireChannel, asyn
     const ok = await hasPermission(req.channel.workspace_id, req.user.id, 'MANAGE_WORKSPACE');
     if (!ok) return res.status(403).json({ error: { code: 'FORBIDDEN', message: 'Requires MANAGE_WORKSPACE' } });
     await query('UPDATE channels SET is_archived = false WHERE id = $1', [req.channel.id]);
+    await publish({ type: 'channel.updated', payload: { channel: publicChannel({ ...req.channel, is_archived: false }) } }, [`workspace:${req.channel.workspace_id}`]);
     res.json({ ok: true });
   } catch (e) {
     next(e);
@@ -201,6 +206,7 @@ channelsRouter.delete('/channels/:id', requireAuth, requireChannel, async (req, 
     if (!ok) return res.status(403).json({ error: { code: 'FORBIDDEN', message: 'Requires DELETE_CHANNEL' } });
     if (req.channel.slug === 'general') return res.status(403).json({ error: { code: 'FORBIDDEN', message: '#general cannot be deleted' } });
     await query('DELETE FROM channels WHERE id = $1', [req.channel.id]);
+    await publish({ type: 'channel.deleted', payload: { id: req.channel.id, workspaceId: req.channel.workspace_id } }, [`workspace:${req.channel.workspace_id}`]);
     res.json({ ok: true });
   } catch (e) {
     next(e);

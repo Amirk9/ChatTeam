@@ -20,6 +20,8 @@ import {
   messagesQuerySchema,
   validate,
 } from '@teamchat/validation';
+import { publish } from '../../websocket/index.js';
+import { notifyUser } from '../notifications/routes.js';
 
 export const messagesRouter = Router();
 
@@ -49,7 +51,19 @@ messagesRouter.post('/channels/:id/messages', requireAuth, requireChannel, async
       await query('INSERT INTO message_mentions(message_id, mentioned_user_id) VALUES ($1,$2) ON CONFLICT DO NOTHING', [msg.id, uid]);
     }
     const full = await getMessage(msg.id);
-    res.status(201).json({ message: serializeMessage(full, { mentionIds: all }) });
+    const out = serializeMessage(full, { mentionIds: all });
+    await publish({ type: 'message.created', payload: { message: out } }, [`channel:${req.channel.id}`]);
+    // Notifications: mentions + thread replies (Slack rules).
+    for (const uid of all) {
+      await notifyUser(uid, req.channel.workspace_id, 'mention', msg.id);
+    }
+    if (parentMessageId) {
+      const parent = await getOne('SELECT sender_id FROM messages WHERE id = $1', [parentMessageId]);
+      if (parent && parent.sender_id !== req.user.id && !all.includes(parent.sender_id)) {
+        await notifyUser(parent.sender_id, req.channel.workspace_id, 'thread_reply', msg.id);
+      }
+    }
+    res.status(201).json({ message: out });
   } catch (e) {
     next(e);
   }
@@ -132,7 +146,9 @@ messagesRouter.patch('/messages/:id', requireAuth, async (req, res, next) => {
     const updated = await getOne('UPDATE messages SET content = $1, updated_at = now() WHERE id = $2 RETURNING *', [content, message.id]);
     const full = await getMessage(updated.id);
     const [reactions, mentions] = await Promise.all([loadReactions([full.id], req.user.id), loadMentions([full.id])]);
-    res.json({ message: serializeMessage(full, { reactions, mentionIds: mentions[full.id] || [] }) });
+    const out = serializeMessage(full, { reactions, mentionIds: mentions[full.id] || [] });
+    await publish({ type: 'message.updated', payload: { message: out } }, [`channel:${channel.id}`]);
+    res.json({ message: out });
   } catch (e) {
     next(e);
   }
@@ -150,6 +166,7 @@ messagesRouter.delete('/messages/:id', requireAuth, async (req, res, next) => {
     }
     await query('UPDATE messages SET deleted_at = now() WHERE id = $1', [message.id]);
     const full = await getMessage(message.id);
+    await publish({ type: 'message.deleted', payload: { id: message.id, channelId: channel.id } }, [`channel:${channel.id}`]);
     res.json({ message: serializeMessage(full) });
   } catch (e) {
     next(e);
@@ -167,6 +184,7 @@ messagesRouter.post('/messages/:id/reactions', requireAuth, async (req, res, nex
     await query('INSERT INTO message_reactions(message_id, user_id, emoji) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING', [message.id, req.user.id, emoji]);
     const reactions = await loadReactions([message.id], req.user.id);
     const full = await getMessage(message.id);
+    await publish({ type: 'reaction.added', payload: { messageId: message.id, channelId: channel.id, emoji, userId: req.user.id } }, [`channel:${channel.id}`]);
     res.status(201).json({ message: serializeMessage(full, { reactions }) });
   } catch (e) {
     next(e);
@@ -182,6 +200,7 @@ messagesRouter.delete('/messages/:id/reactions', requireAuth, async (req, res, n
     await query('DELETE FROM message_reactions WHERE message_id = $1 AND user_id = $2 AND emoji = $3', [message.id, req.user.id, emoji]);
     const reactions = await loadReactions([message.id], req.user.id);
     const full = await getMessage(message.id);
+    await publish({ type: 'reaction.removed', payload: { messageId: message.id, channelId: message.channel_id, emoji, userId: req.user.id } }, [`channel:${message.channel_id}`]);
     res.json({ message: serializeMessage(full, { reactions }) });
   } catch (e) {
     next(e);

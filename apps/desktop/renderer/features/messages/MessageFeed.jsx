@@ -1,11 +1,13 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import { useMessages } from '../../stores/message.store.jsx';
+import { usePresence } from '../../stores/presence.store.jsx';
 import { messageApi } from '../../services/messages.js';
 import MessageItem, { dayOf } from './MessageItem.jsx';
 
 // Slack-style feed: date separators, unread divider, load-more, read marking.
 export default function MessageFeed({ channel, onReply, unreadFrom }) {
   const { byChannel, load } = useMessages();
+  const { typing } = usePresence();
   const feed = byChannel[channel.id] || { messages: [], nextCursor: null };
   const bottomRef = useRef(null);
   const loadedRef = useRef(null);
@@ -50,6 +52,8 @@ export default function MessageFeed({ channel, onReply, unreadFrom }) {
   async function more() {
     if (feed.nextCursor) await load(channel.id, feed.nextCursor);
   }
+
+  const typists = Object.values(typing[channel.id] || {}).map((t) => t.displayName).filter(Boolean);
 
   return (
     <div className="flex-1 overflow-y-auto py-2">
@@ -96,6 +100,11 @@ export default function MessageFeed({ channel, onReply, unreadFrom }) {
         </div>
       ) : null}
       <div ref={bottomRef} />
+      {typists.length > 0 ? (
+        <p className="px-5 py-1 text-xs text-gray-500 italic">
+          {typists.slice(0, 3).join(', ')}{typists.length > 3 ? ` and ${typists.length - 3} others` : ''} {typists.length === 1 ? 'is' : 'are'} typing...
+        </p>
+      ) : null}
     </div>
   );
 }

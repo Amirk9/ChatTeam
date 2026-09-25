@@ -10,6 +10,8 @@ import { usersRouter } from './modules/users/routes.js';
 import { workspacesRouter } from './modules/workspaces/routes.js';
 import { channelsRouter } from './modules/channels/routes.js';
 import { messagesRouter } from './modules/messages/routes.js';
+import { notificationsRouter } from './modules/notifications/routes.js';
+import { presenceRouter } from './modules/presence/routes.js';
 
 export function createApp() {
   const app = express();
@@ -23,6 +25,8 @@ export function createApp() {
   app.use(workspacesRouter);
   app.use(channelsRouter);
   app.use(messagesRouter);
+  app.use(notificationsRouter);
+  app.use(presenceRouter);
   app.use(notFound);
   app.use(errorHandler);
   return app;

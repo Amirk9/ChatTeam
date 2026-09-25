@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useWorkspace } from '../../stores/workspace.store.jsx';
+import { usePresence } from '../../stores/presence.store.jsx';
 import { workspaceApi } from '../../services/workspaces.js';
 import { Field, PrimaryButton } from '../auth/AuthLayout.jsx';
 
@@ -15,6 +16,7 @@ const ROLE_COLORS = {
 // Slack-style members directory with invites + role management.
 export default function Members() {
   const { current } = useWorkspace();
+  const { presence } = usePresence();
   const [members, setMembers] = useState([]);
   const [email, setEmail] = useState('');
   const [role, setRole] = useState('member');
@@ -98,8 +100,12 @@ export default function Members() {
         <ul className="bg-white border border-gray-200 rounded-xl divide-y divide-gray-100">
           {members.map((m) => (
             <li key={m.user.id} className="px-4 py-3 flex items-center gap-3">
-              <div className="w-9 h-9 rounded-md bg-[#4A154B] text-white flex items-center justify-center font-bold">
-                {(m.user.displayName || '?').slice(0, 1).toUpperCase()}
+              <div className="relative">
+                <div className="w-9 h-9 rounded-md bg-[#4A154B] text-white flex items-center justify-center font-bold">
+                  {(m.user.displayName || '?').slice(0, 1).toUpperCase()}
+                </div>
+                <span title={presence[m.user.id]?.state || 'OFFLINE'}
+                  className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white ${presence[m.user.id] ? 'bg-green-500' : 'bg-gray-300'}`} />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold truncate">{m.user.displayName}</p>

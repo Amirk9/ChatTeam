@@ -13,6 +13,7 @@ import { useMessages } from '../stores/message.store.jsx';
 import MessageFeed from '../features/messages/MessageFeed.jsx';
 import Composer from '../features/messages/Composer.jsx';
 import ThreadPane from '../features/messages/ThreadPane.jsx';
+import Bell from '../features/notifications/Bell.jsx';
 import Members from '../features/workspace/Members.jsx';
 import Settings from '../features/workspace/Settings.jsx';
 import Profile from '../features/workspace/Profile.jsx';
@@ -119,9 +120,12 @@ function Shell() {
             Search (Phase 8)
           </div>
         </div>
-        <Link to="/profile" className="w-7 h-7 rounded bg-white/20 flex items-center justify-center text-xs font-bold" title={user.displayName}>
-          {(user.displayName || '?').slice(0, 1).toUpperCase()}
-        </Link>
+        <div className="flex items-center gap-2">
+          <Bell />
+          <Link to="/profile" className="w-7 h-7 rounded bg-white/20 flex items-center justify-center text-xs font-bold" title={user.displayName}>
+            {(user.displayName || '?').slice(0, 1).toUpperCase()}
+          </Link>
+        </div>
       </header>
 
       <div className="flex-1 flex min-h-0">

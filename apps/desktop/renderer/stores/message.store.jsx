@@ -9,6 +9,36 @@ export function MessageProvider({ children }) {
   const [threadRootId, setThreadRootId] = useState(null);
   const [thread, setThread] = useState(null);
 
+  // Live-merge a reaction delta from WS events (Slack instant reactions).
+  const patchReaction = useCallback((channelId, messageId, emoji, userId, delta, myId) => {
+    setByChannel((prev) => {
+      const feed = prev[channelId];
+      if (!feed) return prev;
+      return {
+        ...prev,
+        [channelId]: {
+          ...feed,
+          messages: feed.messages.map((m) => {
+            if (m.id !== messageId) return m;
+            const found = (m.reactions || []).find((r) => r.emoji === emoji);
+            let reactions;
+            if (found) {
+              const count = found.count + delta;
+              reactions = count <= 0
+                ? m.reactions.filter((r) => r.emoji !== emoji)
+                : m.reactions.map((r) => (r.emoji === emoji ? { ...r, count, me: userId === myId ? delta > 0 : r.me } : r));
+            } else if (delta > 0) {
+              reactions = [...(m.reactions || []), { emoji, count: 1, me: userId === myId }];
+            } else {
+              reactions = m.reactions;
+            }
+            return { ...m, reactions };
+          }),
+        },
+      };
+    });
+  }, []);
+
   const patchMessage = useCallback((channelId, msg) => {
     setByChannel((prev) => {
       const feed = prev[channelId] || { messages: [], nextCursor: null };
@@ -65,7 +95,7 @@ export function MessageProvider({ children }) {
   }, [threadRootId]);
 
   return (
-    <MessageContext.Provider value={{ byChannel, load, send, patchMessage, threadRootId, thread, openThread, closeThread, refreshThread }}>
+    <MessageContext.Provider value={{ byChannel, load, send, patchMessage, patchReaction, threadRootId, thread, openThread, closeThread, refreshThread }}>
       {children}
     </MessageContext.Provider>
   );

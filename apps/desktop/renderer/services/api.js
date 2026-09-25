@@ -94,4 +94,6 @@ export const authApi = {
   forgot: (email) => apiRequest('/auth/forgot-password', { method: 'POST', body: { email } }),
   reset: (token, password) => apiRequest('/auth/reset-password', { method: 'POST', body: { token, password } }),
   verifyEmail: (token) => apiRequest(`/auth/verify-email?token=${encodeURIComponent(token)}`),
+  notifications: () => authed('/notifications'),
+  markNotificationsRead: () => authed('/notifications/read', { method: 'POST', body: {} }),
 };

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useMessages } from '../../stores/message.store.jsx';
 import { workspaceApi } from '../../services/workspaces.js';
+import { typingEmit } from '../../stores/presence.store.jsx';
 
 const EMOJI = ['👍', '❤️', '😂', '🎉', '😮', '😢', '👀', '✅', '🔥', '👏', '🙏', '💯'];
 
@@ -14,6 +15,7 @@ export default function Composer({ channel, workspaceId, replyTo = null, onSent,
   const [showEmoji, setShowEmoji] = useState(false);
   const [busy, setBusy] = useState(false);
   const boxRef = useRef(null);
+  const lastType = useRef(0);
 
   useEffect(() => {
     workspaceApi.members(workspaceId).then(setMembers).catch(() => setMembers([]));
@@ -65,6 +67,7 @@ export default function Composer({ channel, workspaceId, replyTo = null, onSent,
     const content = text.trim();
     if (!content || busy) return;
     setBusy(true);
+    typingEmit(channel.id, 'stop');
     try {
       const msg = await send(channel.id, { content, parentMessageId: replyTo });
       setText('');
@@ -96,7 +99,14 @@ export default function Composer({ channel, workspaceId, replyTo = null, onSent,
           ref={boxRef}
           value={text}
           rows={mini ? 2 : 3}
-          onChange={(e) => { setText(e.target.value); trackMention(e.target.value); }}
+          onChange={(e) => {
+            setText(e.target.value);
+            trackMention(e.target.value);
+            if (Date.now() - lastType.current > 2500 && e.target.value.trim()) {
+              lastType.current = Date.now();
+              typingEmit(channel.id, 'start');
+            }
+          }}
           onKeyDown={onKey}
           placeholder={replyTo ? 'Reply to thread...' : `Message #${channel.name}`}
           className="w-full px-4 py-3 text-sm outline-none resize-none rounded-t-lg"
