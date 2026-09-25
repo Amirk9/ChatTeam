@@ -7,6 +7,8 @@ import { useMessages } from '../../stores/message.store.jsx';
 import { usePresence } from '../../stores/presence.store.jsx';
 import { dmApi } from '../../services/dms.js';
 import { workspaceApi } from '../../services/workspaces.js';
+import { canvasApi } from '../../services/canvas.js';
+import { useCall } from '../../stores/call.store.jsx';
 import MessageItem, { dayOf } from '../messages/MessageItem.jsx';
 import Composer from '../messages/Composer.jsx';
 import ThreadPane from '../messages/ThreadPane.jsx';
@@ -22,6 +24,7 @@ export default function DMPage() {
   const { dms, currentDmId, select, refresh, byDm, load, patchDm } = useDMs();
   const { openThread } = useMessages();
   const { presence, typing } = usePresence();
+  const { join: joinCall } = useCall();
   const [members, setMembers] = useState([]);
   const [manage, setManage] = useState(false);
   const bottomRef = useRef(null);
@@ -129,7 +132,18 @@ export default function DMPage() {
         </div>
 
         <CallBar />
-        <Composer dm={{ id: dm.id, name: title }} workspaceId={workspace.id} onSent={() => refresh(workspace.id)} />
+        <Composer
+          dm={{ id: dm.id, name: title }}
+          workspaceId={workspace.id}
+          onSent={() => refresh(workspace.id)}
+          onHuddle={() => joinCall(workspace.id, { dmConversationId: dm.id }).catch(() => {})}
+          onCanvas={async () => {
+            try {
+              const cv = await canvasApi.create(workspace.id, { title: `${title} notes` });
+              nav(`/canvas/${cv.id}`);
+            } catch {}
+          }}
+        />
       </div>
       <ThreadPane channel={{ id: dm.id, name: title }} dm={{ id: dm.id, name: title }} workspaceId={workspace.id} />
       {manage ? <ManageModal dm={dm} members={members} onClose={() => setManage(false)} onChange={async () => {

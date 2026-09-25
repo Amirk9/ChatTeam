@@ -23,6 +23,7 @@ import { usePresence } from '../stores/presence.store.jsx';
 import { ThemeProvider } from '../stores/theme.store.jsx';
 import { checkServerCompat, IN_APP } from '../services/api.js';
 import { workspaceApi } from '../services/workspaces.js';
+import { canvasApi } from '../services/canvas.js';
 
 // Phase 10 perf: secondary routes split into lazy chunks (smaller boot bundle).
 const SearchPage = lazy(() => import('../features/search/SearchPage.jsx'));
@@ -67,6 +68,7 @@ function Home() {
   const { current, refresh: refreshChannels } = useChannels();
   const { byChannel, openThread } = useMessages();
   const { join: joinCall } = useCall();
+  const nav = useNavigate();
   const [drawer, setDrawer] = useState(false);
   const [unreadSnap, setUnreadSnap] = useState(0);
   const [marked, setMarked] = useState(false);
@@ -96,7 +98,13 @@ function Home() {
     return (
       <div className="p-8 max-w-xl">
         <h2 className="text-xl font-bold mb-2 text-[#1d1c1d] dark:text-white">Welcome to TeamChat</h2>
-        <p className="text-sm text-gray-500 dark:text-white/50">Create a workspace or join one with an invite code using the switcher on the left.</p>
+        <p className="text-sm text-gray-500 dark:text-white/50 mb-4">Create a workspace or join one with an invite code using the switcher on the left.</p>
+        <div className="flex gap-2">
+          <button onClick={() => window.dispatchEvent(new CustomEvent('teamchat:workspace-modal'))}
+            className="text-sm px-4 py-2 rounded bg-[#611f69] text-white">Create a workspace</button>
+          <button onClick={() => window.dispatchEvent(new CustomEvent('teamchat:workspace-modal'))}
+            className="text-sm px-4 py-2 rounded border border-gray-300 dark:border-white/15 hover:bg-gray-50 dark:hover:bg-white/10">Join with invite code</button>
+        </div>
       </div>
     );
   }
@@ -129,7 +137,18 @@ function Home() {
         {current.isArchived ? (
           <p className="p-4 text-sm text-gray-500 dark:text-white/50 border-t border-gray-200 dark:border-white/10">This channel is archived and read-only.</p>
         ) : (
-          <Composer channel={current} workspaceId={workspace.id} onSent={() => refreshChannels(workspace.id)} />
+          <Composer
+            channel={current}
+            workspaceId={workspace.id}
+            onSent={() => refreshChannels(workspace.id)}
+            onHuddle={() => joinCall(workspace.id, { channelId: current.id }).catch(() => {})}
+            onCanvas={async () => {
+              try {
+                const cv = await canvasApi.create(workspace.id, { title: `#${current.name} canvas`, channelId: current.id });
+                nav(`/canvas/${cv.id}`);
+              } catch {}
+            }}
+          />
         )}
       </div>
       <ThreadPane channel={current} workspaceId={workspace.id} />
@@ -147,6 +166,12 @@ function Shell() {
   const [wsModal, setWsModal] = useState(false);
   const [help, setHelp] = useState(false);
   useDeepLinks();
+
+  useEffect(() => {
+    const fn = () => setWsModal(true);
+    window.addEventListener('teamchat:workspace-modal', fn);
+    return () => window.removeEventListener('teamchat:workspace-modal', fn);
+  }, []);
 
   useEffect(() => {
     checkServerCompat().then(setCompat).catch(() => {});

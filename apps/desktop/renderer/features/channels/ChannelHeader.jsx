@@ -175,6 +175,7 @@ export function ChannelHeader({ onMembers, tab, setTab }) {
         <button onClick={addCanvas} className="px-2 py-1.5 border-b-2 border-transparent text-gray-500 dark:text-white/50 hover:text-[#1d1c1d] dark:hover:text-white">
           📝 Add canvas
         </button>
+        <button onClick={addCanvas} title="New canvas" className="px-1 py-1.5 text-gray-400 dark:text-white/40 hover:text-[#1d1c1d] dark:hover:text-white">+</button>
       </div>
       {editing ? (
         <form onSubmit={save} className="px-4 pb-2 flex gap-2">

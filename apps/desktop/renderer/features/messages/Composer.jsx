@@ -9,7 +9,7 @@ const EMOJI = ['👍', '❤️', '😂', '🎉', '😮', '😢', '👀', '✅', 
 
 // Real-Slack composer: formatting toolbar on top, textarea, action row with
 // attach/emoji/mention/huddle + send. Dark-first. Channel or DM mode.
-export default function Composer({ channel, dm, workspaceId, replyTo = null, onSent, mini = false }) {
+export default function Composer({ channel, dm, workspaceId, replyTo = null, onSent, mini = false, onHuddle, onCanvas }) {
   const { send, refreshThread, openThread } = useMessages();
   const dmStore = useDMs();
   const target = dm || channel;
@@ -228,6 +228,12 @@ export default function Composer({ channel, dm, workspaceId, replyTo = null, onS
           <button onClick={attachClicked} title="Attach files" className="hover:bg-gray-100 dark:hover:bg-white/10 rounded-full w-7 h-7 flex items-center justify-center">＋</button>
           <button onClick={() => setShowEmoji((s) => !s)} title="Emoji" className="hover:bg-gray-100 dark:hover:bg-white/10 rounded px-1">😊</button>
           <button onClick={() => { setText((t) => `${t}@`); boxRef.current?.focus(); }} title="Mention" className="hover:bg-gray-100 dark:hover:bg-white/10 rounded px-1 text-base">@</button>
+          {!isDm && !replyTo ? (
+            <>
+              <button onClick={onHuddle} title="Start huddle" className="hover:bg-gray-100 dark:hover:bg-white/10 rounded px-1 text-base">🎥</button>
+              <button onClick={onCanvas} title="New canvas" className="hover:bg-gray-100 dark:hover:bg-white/10 rounded px-1 text-base">📝</button>
+            </>
+          ) : null}
           {queuedNote ? <span className="text-xs text-yellow-700 dark:text-yellow-300 ml-1">Queued — will send on reconnect</span> : null}
           <div className="flex-1" />
           <button onClick={submit} disabled={busy || (!text.trim() && !pending.some((p) => p.id)) || pending.some((p) => p.uploading)}

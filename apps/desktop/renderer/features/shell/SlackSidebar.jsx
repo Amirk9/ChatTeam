@@ -9,6 +9,7 @@ import { useCall } from '../../stores/call.store.jsx';
 import { workspaceApi } from '../../services/workspaces.js';
 import { channelApi } from '../../services/channels.js';
 import { callsApi } from '../../services/calls.js';
+import { botsApi } from '../../services/advanced.js';
 import { onRealtime } from '../../services/socket.js';
 import { NewDMModal } from '../direct-messages/DMList.jsx';
 
@@ -50,12 +51,14 @@ export default function SlackSidebar() {
   const [create, setCreate] = useState(false);
   const [invite, setInvite] = useState(false);
   const [liveCall, setLiveCall] = useState(null);
+  const [bots, setBots] = useState([]);
 
   useEffect(() => {
     if (workspace?.id) {
       refreshChannels(workspace.id).catch(() => {});
       refreshDms(workspace.id).catch(() => {});
       checkHuddle();
+      botsApi.list(workspace.id).then(setBots).catch(() => setBots([]));
     }
   }, [workspace?.id]);
 
@@ -206,6 +209,14 @@ export default function SlackSidebar() {
               {notifUnread > 0 ? <span className="text-[11px] font-bold bg-red-500 text-white rounded-full px-1.5">{notifUnread > 9 ? '9+' : notifUnread}</span> : null}
             </Link>
           </li>
+          {bots.slice(0, 5).map((b) => (
+            <li key={b.id}>
+              <Link to="/apps" className="w-full flex items-center gap-2 text-left px-3 py-1 rounded-md text-[15px] text-white/70 hover:bg-white/10 hover:text-white">
+                <span className="w-5 h-5 rounded bg-white/20 flex items-center justify-center text-[11px] font-bold shrink-0">🤖</span>
+                <span className="truncate flex-1">{b.name}</span>
+              </Link>
+            </li>
+          ))}
           <li>
             <Link to="/apps" className="w-full block text-left px-3 py-1 rounded-md text-[15px] text-white/60 hover:bg-white/10 hover:text-white">+ Connect apps</Link>
           </li>
