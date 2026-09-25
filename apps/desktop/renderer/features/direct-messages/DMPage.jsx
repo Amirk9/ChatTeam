@@ -78,19 +78,19 @@ export default function DMPage() {
   return (
     <div className="flex-1 flex min-h-0 min-w-0">
       <div className="flex-1 flex flex-col min-w-0 min-h-0">
-        <div className="px-5 py-3 border-b border-gray-200 flex items-center gap-3">
+        <div className="px-5 py-3 border-b border-gray-200 dark:border-white/10 flex items-center gap-3">
           <div className="w-9 h-9 rounded-md bg-[#4A154B] text-white flex items-center justify-center font-bold shrink-0">
             {dm.isGroup ? '👥' : (title.slice(0, 1).toUpperCase() || '?')}
           </div>
           <div className="flex-1 min-w-0">
-            <h2 className="font-bold truncate">{title}</h2>
-            <p className="text-xs text-gray-500 truncate">
+            <h2 className="font-bold truncate text-[#1d1c1d] dark:text-white">{title}</h2>
+            <p className="text-xs text-gray-500 dark:text-white/40 truncate">
               {dm.isGroup ? `${others.length + 1} members` : peerStatus || 'Offline'}
               {seenBy.length ? ` · ✓✓ Seen by ${seenBy.join(', ')}` : ''}
             </p>
           </div>
           <HuddleButton workspaceId={workspace.id} target={{ dmConversationId: dm.id }} />
-          <button onClick={() => setManage(true)} className="text-xs px-2 py-1 rounded border border-gray-300 hover:bg-gray-50">Members</button>
+          <button onClick={() => setManage(true)} className="text-xs px-2 py-1 rounded border border-gray-300 dark:border-white/15 hover:bg-gray-50 dark:hover:bg-white/10">Members</button>
         </div>
 
         <div className="flex-1 overflow-y-auto py-2">
@@ -105,9 +105,11 @@ export default function DMPage() {
               <React.Fragment key={m.id}>
                 {showDay ? (
                   <div className="flex items-center gap-3 px-5 my-3">
-                    <div className="flex-1 border-t border-gray-200" />
-                    <span className="text-xs font-semibold text-gray-500 border border-gray-200 rounded-full px-3 py-0.5">{dayOf(m.createdAt)}</span>
-                    <div className="flex-1 border-t border-gray-200" />
+                    <div className="flex-1 border-t border-gray-300 dark:border-white/15" />
+                    <button className="text-[13px] font-bold text-[#1d1c1d] dark:text-white border border-gray-300 dark:border-white/20 rounded-full px-3 py-0.5 hover:bg-gray-100 dark:hover:bg-white/10 shadow-sm dark:shadow-none">
+                      {dayOf(m.createdAt)} ⌄
+                    </button>
+                    <div className="flex-1 border-t border-gray-300 dark:border-white/15" />
                   </div>
                 ) : null}
                 <MessageItem message={m} channelId={null} onReply={(rootId) => openThread(dm.id, rootId)} compact={compact} />
@@ -116,8 +118,8 @@ export default function DMPage() {
           })}
           {messages.length === 0 ? (
             <div className="px-5 py-6 max-w-2xl">
-              <h3 className="text-xl font-bold mb-1">This is the very beginning of your conversation with {title}</h3>
-              <p className="text-sm text-gray-500">Messages, files, emoji reactions and threads all work here — just like channels.</p>
+              <h3 className="text-xl font-bold mb-1 text-[#1d1c1d] dark:text-white">This is the very beginning of your conversation with {title}</h3>
+              <p className="text-sm text-gray-500 dark:text-white/50">Messages, files, emoji reactions and threads all work here — just like channels.</p>
             </div>
           ) : null}
           <div ref={bottomRef} />
@@ -184,22 +186,22 @@ function ManageModal({ dm, members, onClose, onChange, onLeave }) {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4" onClick={onClose}>
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-white dark:bg-[#1A1D21] dark:text-white rounded-xl shadow-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-bold">{dm.isGroup ? 'Group details' : 'Conversation details'}</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl leading-none">×</button>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-xl leading-none">×</button>
         </div>
         {error ? <p className="mb-2 text-sm text-red-600">{error}</p> : null}
         {dm.isGroup ? (
           <form onSubmit={rename} className="flex gap-2 mb-4">
-            <input value={name} onChange={(e) => setName(e.target.value)} className="flex-1 border border-gray-300 rounded-md px-3 py-1.5 text-sm" placeholder="Group name" />
+            <input value={name} onChange={(e) => setName(e.target.value)} className="flex-1 border border-gray-300 dark:border-white/15 dark:bg-white/5 rounded-md px-3 py-1.5 text-sm" placeholder="Group name" />
             <button className="text-xs px-3 py-1.5 rounded bg-[#611f69] text-white">Save</button>
           </form>
-        ) : <p className="text-sm text-gray-500 mb-4">1-1 conversations are fixed between two people — like Slack.</p>}
-        <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Members ({members.length})</p>
+        ) : <p className="text-sm text-gray-500 dark:text-white/40 mb-4">1-1 conversations are fixed between two people — like Slack.</p>}
+        <p className="text-xs font-semibold text-gray-500 dark:text-white/40 uppercase mb-1">Members ({members.length})</p>
         <ul className="space-y-1 max-h-48 overflow-y-auto mb-3">
           {members.map((m) => (
-            <li key={m.userId} className="flex items-center gap-2 text-sm px-2 py-1 rounded hover:bg-gray-50">
+            <li key={m.userId} className="flex items-center gap-2 text-sm px-2 py-1 rounded hover:bg-gray-50 dark:hover:bg-white/10">
               <span className="font-semibold flex-1 truncate">{m.displayName} {m.userId === user.id ? '(you)' : ''}</span>
               <span className="text-xs text-gray-400">{m.status}</span>
               {dm.isGroup ? <button onClick={() => remove(m.userId)} className="text-xs text-red-600 hover:underline">Remove</button> : null}
@@ -208,12 +210,12 @@ function ManageModal({ dm, members, onClose, onChange, onLeave }) {
         </ul>
         {dm.isGroup ? (
           <div className="relative">
-            <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Add people by name or email..." className="w-full border border-gray-300 rounded-md px-3 py-1.5 text-sm" />
+            <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Add people by name or email..." className="w-full border border-gray-300 dark:border-white/15 dark:bg-white/5 rounded-md px-3 py-1.5 text-sm" />
             {suggestions.length > 0 ? (
-              <ul className="absolute bottom-full mb-1 left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-10">
+              <ul className="absolute bottom-full mb-1 left-0 right-0 bg-white dark:bg-[#222529] dark:border-white/10 border border-gray-200 rounded-lg shadow-lg py-1 z-10">
                 {suggestions.map((s) => (
                   <li key={s.user.id}>
-                    <button onClick={() => add(s.user.id)} className="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100">
+                    <button onClick={() => add(s.user.id)} className="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-100 dark:hover:bg-white/10">
                       <span className="font-semibold">{s.user.displayName}</span>
                       <span className="text-xs text-gray-400 ml-2">{s.user.email}</span>
                     </button>

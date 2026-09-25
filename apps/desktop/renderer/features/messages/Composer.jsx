@@ -7,8 +7,8 @@ import { uploadFiles, pickFiles, formatSize } from '../../services/files.js';
 import { sendWithOutbox } from '../../services/outbox.js';
 const EMOJI = ['👍', '❤️', '😂', '🎉', '😮', '😢', '👀', '✅', '🔥', '👏', '🙏', '💯'];
 
-// Slack-style composer: @mention autocomplete, emoji picker, code button.
-// Channel mode: <Composer channel workspaceId />. DM mode: <Composer dm workspaceId />.
+// Real-Slack composer: formatting toolbar on top, textarea, action row with
+// attach/emoji/mention/huddle + send. Dark-first. Channel or DM mode.
 export default function Composer({ channel, dm, workspaceId, replyTo = null, onSent, mini = false }) {
   const { send, refreshThread, openThread } = useMessages();
   const dmStore = useDMs();
@@ -31,6 +31,13 @@ export default function Composer({ channel, dm, workspaceId, replyTo = null, onS
     workspaceApi.members(workspaceId).then(setMembers).catch(() => setMembers([]));
   }, [workspaceId]);
 
+  // Welcome-card GIF button opens the emoji picker.
+  useEffect(() => {
+    const fn = () => setShowEmoji(true);
+    window.addEventListener('teamchat:composer-emoji', fn);
+    return () => window.removeEventListener('teamchat:composer-emoji', fn);
+  }, []);
+
   function trackMention(v) {
     const m = v.slice(0, boxRef.current?.selectionStart ?? v.length).match(/@([\w.+-]*)$/);
     if (m) {
@@ -52,6 +59,33 @@ export default function Composer({ channel, dm, workspaceId, replyTo = null, onS
     setText(before + text.slice(pos));
     setQuery(null);
     el?.focus();
+  }
+
+  // Markdown helpers operating on the textarea selection (Slack toolbar parity).
+  function surround(before, after = before) {
+    const el = boxRef.current;
+    if (!el) return;
+    const { selectionStart: s, selectionEnd: e } = el;
+    const sel = text.slice(s, e) || 'text';
+    setText(text.slice(0, s) + before + sel + after + text.slice(e));
+    requestAnimationFrame(() => {
+      el.focus();
+      el.setSelectionRange(s + before.length, s + before.length + sel.length);
+    });
+  }
+
+  function prefixLines(prefix) {
+    const el = boxRef.current;
+    if (!el) return;
+    const { selectionStart: s } = el;
+    const lineStart = text.lastIndexOf('\n', s - 1) + 1;
+    setText(text.slice(0, lineStart) + prefix + text.slice(lineStart));
+    requestAnimationFrame(() => el.focus());
+  }
+
+  function insertLink() {
+    const url = window.prompt('Link URL:');
+    if (url) surround('[', `](${url})`);
   }
 
   function insertCode() {
@@ -123,34 +157,49 @@ export default function Composer({ channel, dm, workspaceId, replyTo = null, onS
     }
   }
 
+  const toolBtn = 'px-1.5 py-0.5 rounded font-bold hover:bg-gray-200 dark:hover:bg-white/10 text-gray-600 dark:text-white/70';
+
   return (
-    <div className={mini ? '' : 'p-4'}>
+    <div className={mini ? '' : 'px-5 pb-4 pt-1'}>
       <div
-        className={`border rounded-lg relative ${dragOver ? 'border-[#611f69] ring-2 ring-[#611f69]' : 'border-gray-300'}`}
+        className={`rounded-xl border relative bg-white dark:bg-[#222529] dark:border-white/20 shadow-sm ${dragOver ? 'border-[#611f69] ring-2 ring-[#611f69]' : 'border-gray-300'}`}
         onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
         onDragLeave={() => setDragOver(false)}
         onDrop={(e) => { e.preventDefault(); setDragOver(false); if (e.dataTransfer?.files?.length) addFiles(e.dataTransfer.files); }}
       >
         <input ref={fileInput} type="file" multiple className="hidden" onChange={(e) => { addFiles(e.target.files); e.target.value = ''; }} />
+        {/* Formatting toolbar */}
+        <div className="flex items-center gap-0.5 px-3 pt-2 text-gray-600 dark:text-white/70 text-[15px]">
+          <button onClick={() => surround('**')} title="Bold" className={toolBtn}>B</button>
+          <button onClick={() => surround('*')} title="Italic" className={`${toolBtn} italic font-normal`}>I</button>
+          <button onClick={() => surround('~')} title="Strikethrough" className={`${toolBtn} line-through`}>U</button>
+          <button onClick={insertLink} title="Link" className={`${toolBtn} font-normal`}>🔗</button>
+          <span className="w-px h-4 bg-gray-300 dark:bg-white/15 mx-1" />
+          <button onClick={() => prefixLines('- ')} title="Bulleted list" className={`${toolBtn} font-normal`}>☰</button>
+          <button onClick={() => prefixLines('1. ')} title="Numbered list" className={`${toolBtn} font-normal text-xs`}>1.</button>
+          <button onClick={() => prefixLines('> ')} title="Quote" className={`${toolBtn} font-normal`}>❝</button>
+          <button onClick={() => surround('`')} title="Inline code" className={`${toolBtn} font-mono font-normal text-sm`}>{'</>'}</button>
+          <button onClick={insertCode} title="Code block" className={`${toolBtn} font-mono font-normal text-xs`}>{"{ }"}</button>
+        </div>
         {pending.length > 0 ? (
           <div className="px-3 pt-2 space-y-1">
             {pending.map((p) => (
-              <div key={p.key} className="flex items-center gap-2 text-xs bg-gray-50 border border-gray-200 rounded-md px-2 py-1">
+              <div key={p.key} className="flex items-center gap-2 text-xs bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-md px-2 py-1">
                 <span className="font-semibold truncate flex-1">📎 {p.name} <span className="text-gray-400 font-normal">({formatSize(p.size)})</span></span>
                 {p.error ? <span className="text-red-600">{p.error}</span> : null}
                 {p.uploading ? (
                   <progress value={p.progress} max={1} className="w-20 h-1.5 accent-[#611f69]" />
                 ) : null}
-                <button onClick={() => setPending((list) => list.filter((x) => x.key !== p.key))} className="text-gray-400 hover:text-gray-600">×</button>
+                <button onClick={() => setPending((list) => list.filter((x) => x.key !== p.key))} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">×</button>
               </div>
             ))}
           </div>
         ) : null}
         {query !== null && matches.length > 0 ? (
-          <div className="absolute bottom-full mb-1 left-0 w-64 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-20">
+          <div className="absolute bottom-full mb-1 left-0 w-64 bg-white dark:bg-[#1A1D21] dark:border-white/10 border border-gray-200 rounded-lg shadow-lg py-1 z-20">
             {matches.map((m, i) => (
               <button key={m.user.id} onMouseDown={(e) => { e.preventDefault(); insertMention(m); }}
-                className={`w-full text-left px-3 py-1.5 text-sm ${i === hi ? 'bg-[#1164A3] text-white' : 'hover:bg-gray-100'}`}>
+                className={`w-full text-left px-3 py-1.5 text-sm ${i === hi ? 'bg-[#1164A3] text-white' : 'hover:bg-gray-100 dark:hover:bg-white/10'}`}>
                 <span className="font-semibold">{m.user.displayName}</span>
                 <span className={`text-xs ml-2 ${i === hi ? 'text-white/70' : 'text-gray-400'}`}>{m.user.email}</span>
               </button>
@@ -172,20 +221,21 @@ export default function Composer({ channel, dm, workspaceId, replyTo = null, onS
           }}
           onKeyDown={onKey}
           placeholder={replyTo ? 'Reply to thread...' : isDm ? `Message ${dm.name || 'this conversation'}` : `Message #${channel.name}`}
-          className="w-full px-4 py-3 text-sm outline-none resize-none rounded-t-lg"
+          className="w-full px-4 py-2 text-[15px] outline-none resize-none bg-transparent text-[#1d1c1d] dark:text-white placeholder-gray-500 dark:placeholder-white/30"
         />
-        <div className="flex items-center gap-1 px-3 py-1.5 border-t border-gray-100 text-gray-500 text-sm relative">
-          <button onClick={() => setShowEmoji((s) => !s)} className="hover:bg-gray-100 rounded px-1.5 py-0.5" title="Emoji">😊</button>
-          <button onClick={attachClicked} className="hover:bg-gray-100 rounded px-1.5 py-0.5" title="Attach files">📎</button>
-          <button onClick={insertCode} className="hover:bg-gray-100 rounded px-1.5 py-0.5 font-mono text-xs" title="Code block">{'</>'}</button>
-          <span className="text-xs text-gray-400 ml-1 hidden sm:inline">**bold** *italic* `code` @mention supported</span>
-          {queuedNote ? <span className="text-xs text-yellow-700 ml-1">Queued — will send on reconnect</span> : null}
+        {/* Action row */}
+        <div className="flex items-center gap-0.5 px-3 pb-2 text-gray-500 dark:text-white/60 text-lg relative">
+          <button onClick={attachClicked} title="Attach files" className="hover:bg-gray-100 dark:hover:bg-white/10 rounded-full w-7 h-7 flex items-center justify-center">＋</button>
+          <button onClick={() => setShowEmoji((s) => !s)} title="Emoji" className="hover:bg-gray-100 dark:hover:bg-white/10 rounded px-1">😊</button>
+          <button onClick={() => { setText((t) => `${t}@`); boxRef.current?.focus(); }} title="Mention" className="hover:bg-gray-100 dark:hover:bg-white/10 rounded px-1 text-base">@</button>
+          {queuedNote ? <span className="text-xs text-yellow-700 dark:text-yellow-300 ml-1">Queued — will send on reconnect</span> : null}
           <div className="flex-1" />
-          <button onClick={submit} disabled={busy || (!text.trim() && !pending.some((p) => p.id)) || pending.some((p) => p.uploading)} className="text-xs px-3 py-1 rounded bg-[#611f69] text-white disabled:opacity-40">Send</button>
+          <button onClick={submit} disabled={busy || (!text.trim() && !pending.some((p) => p.id)) || pending.some((p) => p.uploading)}
+            title="Send" className="w-8 h-8 rounded-full bg-[#611f69] text-white flex items-center justify-center disabled:opacity-40 text-base">➤</button>
           {showEmoji ? (
-            <div className="absolute bottom-full mb-1 left-0 bg-white border border-gray-200 rounded-lg shadow-lg p-2 grid grid-cols-6 gap-0.5 z-20">
+            <div className="absolute bottom-full mb-1 left-0 bg-white dark:bg-[#1A1D21] dark:border-white/10 border border-gray-200 rounded-lg shadow-lg p-2 grid grid-cols-6 gap-0.5 z-20">
               {EMOJI.map((e) => (
-                <button key={e} onClick={() => { setText((t) => t + e); setShowEmoji(false); }} className="text-xl hover:bg-gray-100 rounded p-0.5">{e}</button>
+                <button key={e} onClick={() => { setText((t) => t + e); setShowEmoji(false); }} className="text-xl hover:bg-gray-100 dark:hover:bg-white/10 rounded p-0.5">{e}</button>
               ))}
             </div>
           ) : null}

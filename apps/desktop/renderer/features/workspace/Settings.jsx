@@ -48,9 +48,9 @@ function DesktopSection() {
 
   if (!IN_APP) return null;
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-4 mb-4">
+    <div className="bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl p-4 mb-4">
       <h3 className="text-sm font-bold mb-1">Desktop app</h3>
-      <p className="text-xs text-gray-500 mb-3">Version {version || '…'} · logs + updates live here, like Slack's preferences.</p>
+      <p className="text-xs text-gray-500 dark:text-white/40 mb-3">Version {version || '…'} · logs + updates live here, like Slack's preferences.</p>
       {msg ? <p className="mb-2 text-sm text-gray-700">{msg}</p> : null}
       <div className="flex flex-wrap gap-2 mb-3">
         <button onClick={check} className="text-xs px-3 py-1.5 rounded border border-gray-300 hover:bg-gray-50">Check for updates</button>
@@ -110,25 +110,25 @@ export default function Settings() {
   }
 
   return (
-    <div className="p-6 max-w-xl font-sans">
+    <div className="p-6 max-w-xl font-sans text-[#1d1c1d] dark:text-white">
       <h2 className="text-xl font-bold mb-1">Workspace settings</h2>
-      <p className="text-sm text-gray-500 mb-4">Your role: <strong>{current.role}</strong> · slug: <code>{current.slug}</code></p>
+      <p className="text-sm text-gray-500 dark:text-white/40 mb-4">Your role: <strong>{current.role}</strong> · slug: <code>{current.slug}</code></p>
       <DesktopSection />
       {error ? <div className="mb-3 rounded-md bg-red-50 border border-red-200 text-red-700 text-sm px-3 py-2">{error}</div> : null}
       {saved ? <div className="mb-3 rounded-md bg-green-50 border border-green-200 text-green-800 text-sm px-3 py-2">Saved.</div> : null}
       {canManage ? (
-        <form onSubmit={save} className="bg-white border border-gray-200 rounded-xl p-4 mb-4">
+        <form onSubmit={save} className="bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl p-4 mb-4">
           <label className="text-sm font-semibold">Workspace name</label>
           <Field value={name} onChange={(e) => setName(e.target.value)} />
           <PrimaryButton type="submit">Save changes</PrimaryButton>
         </form>
       ) : (
-        <p className="text-sm text-gray-500 mb-4">Only admins can change settings.</p>
+        <p className="text-sm text-gray-500 dark:text-white/40 mb-4">Only admins can change settings.</p>
       )}
       {isOwner ? (
         <div className="bg-white border border-red-200 rounded-xl p-4">
           <h3 className="text-sm font-bold text-red-700 mb-1">Danger zone</h3>
-          <p className="text-xs text-gray-500 mb-2">Deleting a workspace removes everything in it.</p>
+          <p className="text-xs text-gray-500 dark:text-white/40 mb-2">Deleting a workspace removes everything in it.</p>
           <button onClick={destroy} className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-semibold">Delete workspace</button>
         </div>
       ) : null}

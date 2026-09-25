@@ -23,15 +23,15 @@ export default function AppsPage() {
   useEffect(() => { load(); }, [workspace?.id]);
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 max-w-3xl w-full mx-auto">
+    <div className="flex-1 overflow-y-auto p-6 max-w-3xl w-full mx-auto text-[#1d1c1d] dark:text-white">
       <h2 className="text-xl font-bold mb-1">Apps & integrations</h2>
-      <p className="text-sm text-gray-500 mb-4">Bots, slash commands and webhooks — like Slack's app directory.</p>
+      <p className="text-sm text-gray-500 dark:text-white/40 mb-4">Bots, slash commands and webhooks — like Slack's app directory.</p>
       {error ? <p className="text-sm text-red-600 mb-2">{error}</p> : null}
       <BotSection workspaceId={workspace?.id} bots={bots} onChange={load} />
       <IntegrationSection workspaceId={workspace?.id} integrations={integrations} onChange={load} />
-      <div className="mt-4 border border-gray-200 rounded-xl p-4 text-sm">
+      <div className="mt-4 border border-gray-200 dark:border-white/10 rounded-xl p-4 text-sm">
         <h3 className="font-bold mb-1">Built-in slash commands</h3>
-        <ul className="text-gray-600 space-y-1">
+        <ul className="text-gray-600 dark:text-white/60 space-y-1">
           <li><code>/meeting create [title]</code> — spin up a huddle + post a join card</li>
           <li><code>/github deploy &lt;env&gt;</code> — post a deploy notice (e.g. <code>/github deploy production</code>)</li>
           <li><code>/poll question?; option A; option B</code> — post a clickable poll</li>
@@ -78,7 +78,7 @@ function BotSection({ workspaceId, bots, onChange }) {
   }
 
   return (
-    <section className="border border-gray-200 rounded-xl p-4 mb-4">
+    <section className="border border-gray-200 dark:border-white/10 rounded-xl p-4 mb-4">
       <h3 className="font-bold mb-2">Bots</h3>
       {error ? <p className="text-xs text-red-600 mb-2">{error}</p> : null}
       {token ? <p className="text-xs bg-yellow-50 border border-yellow-200 rounded p-2 mb-2 break-all">Bot token (copy now — shown once): <code>{token}</code></p> : null}
@@ -91,8 +91,8 @@ function BotSection({ workspaceId, bots, onChange }) {
           <li key={b.id} className="border border-gray-100 rounded-lg p-2">
             <p className="text-sm font-semibold">🤖 {b.name}</p>
             <div className="flex gap-1 mt-1">
-              <input value={cmd[b.id]?.command || ''} onChange={(e) => setCmd((c) => ({ ...c, [b.id]: { ...c[b.id], command: e.target.value } }))} placeholder="command (e.g. standup)" className="flex-1 border border-gray-200 rounded px-2 py-1 text-xs" />
-              <input value={cmd[b.id]?.responseTemplate || ''} onChange={(e) => setCmd((c) => ({ ...c, [b.id]: { ...c[b.id], responseTemplate: e.target.value } }))} placeholder="Reply, {{user}} {{args}} work" className="flex-[2] border border-gray-200 rounded px-2 py-1 text-xs" />
+              <input value={cmd[b.id]?.command || ''} onChange={(e) => setCmd((c) => ({ ...c, [b.id]: { ...c[b.id], command: e.target.value } }))} placeholder="command (e.g. standup)" className="flex-1 border border-gray-200 dark:border-white/10 rounded px-2 py-1 text-xs" />
+              <input value={cmd[b.id]?.responseTemplate || ''} onChange={(e) => setCmd((c) => ({ ...c, [b.id]: { ...c[b.id], responseTemplate: e.target.value } }))} placeholder="Reply, {{user}} {{args}} work" className="flex-[2] border border-gray-200 dark:border-white/10 rounded px-2 py-1 text-xs" />
               <button onClick={() => addCommand(b.id)} className="text-xs px-2 py-1 rounded border border-gray-300">Add /cmd</button>
             </div>
           </li>
@@ -136,7 +136,7 @@ function IntegrationSection({ workspaceId, integrations, onChange }) {
   }
 
   return (
-    <section className="border border-gray-200 rounded-xl p-4">
+    <section className="border border-gray-200 dark:border-white/10 rounded-xl p-4">
       <h3 className="font-bold mb-2">Incoming webhooks & subscriptions</h3>
       {error ? <p className="text-xs text-red-600 mb-2">{error}</p> : null}
       {hook ? <p className="text-xs bg-green-50 border border-green-200 rounded p-2 mb-2 break-all">POST to <code>{hook.incomingUrl}</code> with <code>{'{ "text": "..." }'}</code> — GitHub push/PR payloads auto-format.</p> : null}
@@ -150,7 +150,7 @@ function IntegrationSection({ workspaceId, integrations, onChange }) {
           <li key={i.id} className="border border-gray-100 rounded-lg p-2">
             <p className="text-sm font-semibold">🔌 {i.name} <span className="text-xs text-gray-400">({i.provider})</span></p>
             <div className="flex gap-1 mt-1">
-              <input value={sub[i.id]?.url || ''} onChange={(e) => setSub((s) => ({ ...s, [i.id]: { url: e.target.value } }))} placeholder="Outgoing URL for message.created" className="flex-1 border border-gray-200 rounded px-2 py-1 text-xs" />
+              <input value={sub[i.id]?.url || ''} onChange={(e) => setSub((s) => ({ ...s, [i.id]: { url: e.target.value } }))} placeholder="Outgoing URL for message.created" className="flex-1 border border-gray-200 dark:border-white/10 rounded px-2 py-1 text-xs" />
               <button onClick={() => subscribe(i.id)} className="text-xs px-2 py-1 rounded border border-gray-300">Subscribe</button>
               <button onClick={() => integrationsApi.remove(i.id).then(onChange).catch((err) => setError(err.message))} className="text-xs px-2 py-1 rounded border border-red-300 text-red-600">Delete</button>
             </div>

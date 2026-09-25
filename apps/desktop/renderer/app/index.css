@@ -1,1 +1,34 @@
 @import "tailwindcss";
+
+/* Slack-like theming: class-driven dark mode (dark first, like real Slack). */
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --slack-eggplant: #3f0e40;
+  --slack-topbar: #350d36;
+  --slack-rail: #2b0a2e;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  font-family: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Slim Slack-style scrollbars on dark surfaces. */
+.dark ::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.22);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+.dark ::-webkit-scrollbar-track {
+  background: transparent;
+}

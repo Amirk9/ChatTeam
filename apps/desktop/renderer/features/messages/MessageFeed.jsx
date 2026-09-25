@@ -4,10 +4,11 @@ import { usePresence } from '../../stores/presence.store.jsx';
 import { messageApi } from '../../services/messages.js';
 import MessageItem, { dayOf } from './MessageItem.jsx';
 import VirtualList from './VirtualList.jsx';
+import ChannelWelcome from '../channels/ChannelWelcome.jsx';
 
-// Slack-style feed: date separators, unread divider, load-more, read marking.
+// Slack-style feed: welcome header, date pills, unread divider, load-more.
 // Rows virtualize past 60 items (Phase 10 perf); smaller feeds render directly.
-export default function MessageFeed({ channel, onReply, unreadFrom }) {
+export default function MessageFeed({ channel, onReply, unreadFrom, onGif, onHuddle, onInvite }) {
   const { byChannel, load } = useMessages();
   const { typing } = usePresence();
   const feed = byChannel[channel.id] || { messages: [], nextCursor: null };
@@ -23,6 +24,24 @@ export default function MessageFeed({ channel, onReply, unreadFrom }) {
   }, [channel.id, load]);
 
   const messages = feed.messages;
+
+  const rows = useMemo(() => {
+    const out = [];
+    // Slack shows the channel welcome at the very top once history is complete.
+    if (!feed.nextCursor) {
+      out.push({ type: 'welcome', key: `welcome-${channel.id}`, domId: undefined });
+    }
+    let lastDay = '';
+    messages.forEach((m, i) => {
+      const day = dayOf(m.createdAt);
+      if (day !== lastDay) {
+        out.push({ type: 'day', key: `day-${channel.id}-${day}`, domId: undefined, day });
+        lastDay = day;
+      }
+      out.push({ type: 'msg', key: m.id, domId: `msg-${m.id}`, message: m, index: i });
+    });
+    return out;
+  }, [messages, channel.id, feed.nextCursor]);
 
   // Mark read at the newest message whenever the feed grows (Slack behavior).
   useEffect(() => {
@@ -51,20 +70,6 @@ export default function MessageFeed({ channel, onReply, unreadFrom }) {
     } catch {}
   }, [channel.id, messages.length, rows]);
 
-  const rows = useMemo(() => {
-    const out = [];
-    let lastDay = '';
-    messages.forEach((m, i) => {
-      const day = dayOf(m.createdAt);
-      if (day !== lastDay) {
-        out.push({ type: 'day', key: `day-${channel.id}-${day}`, domId: undefined, day });
-        lastDay = day;
-      }
-      out.push({ type: 'msg', key: m.id, domId: `msg-${m.id}`, message: m, index: i });
-    });
-    return out;
-  }, [messages, channel.id]);
-
   const unreadKey = useMemo(() => {
     if (!unreadFrom) return null;
     const hit = rows.find((r) => r.type === 'msg' && new Date(r.message.createdAt) > new Date(unreadFrom));
@@ -78,12 +83,17 @@ export default function MessageFeed({ channel, onReply, unreadFrom }) {
   const typists = Object.values(typing[channel.id] || {}).map((t) => t.displayName).filter(Boolean);
 
   function renderRow(r) {
+    if (r.type === 'welcome') {
+      return <ChannelWelcome channel={channel} onGif={onGif} onHuddle={onHuddle} onInvite={onInvite} />;
+    }
     if (r.type === 'day') {
       return (
         <div className="flex items-center gap-3 px-5 my-3">
-          <div className="flex-1 border-t border-gray-200" />
-          <span className="text-xs font-semibold text-gray-500 border border-gray-200 rounded-full px-3 py-0.5">{r.day}</span>
-          <div className="flex-1 border-t border-gray-200" />
+          <div className="flex-1 border-t border-gray-300 dark:border-white/15" />
+          <button className="text-[13px] font-bold text-[#1d1c1d] dark:text-white border border-gray-300 dark:border-white/20 rounded-full px-3 py-0.5 hover:bg-gray-100 dark:hover:bg-white/10 shadow-sm dark:shadow-none">
+            {r.day} ⌄
+          </button>
+          <div className="flex-1 border-t border-gray-300 dark:border-white/15" />
         </div>
       );
     }
@@ -120,13 +130,13 @@ export default function MessageFeed({ channel, onReply, unreadFrom }) {
       ) : null}
       bottomAnchor={
         <>
-          {messages.length === 0 ? (
+          {messages.length === 0 && feed.nextCursor ? (
             <div className="px-5 py-6 max-w-2xl">
               <div className="w-14 h-14 rounded-lg bg-[#4A154B] text-white flex items-center justify-center text-2xl font-bold mb-3">
                 {channel.isPrivate ? '🔒' : '#'}
               </div>
-              <h3 className="text-xl font-bold mb-1">Welcome to #{channel.name}</h3>
-              <p className="text-sm text-gray-500">{channel.description || 'This is the very beginning of the channel.'}</p>
+              <h3 className="text-xl font-bold mb-1 text-[#1d1c1d] dark:text-white">Welcome to #{channel.name}</h3>
+              <p className="text-sm text-gray-500 dark:text-white/50">{channel.description || 'This is the very beginning of the channel.'}</p>
             </div>
           ) : null}
           {typists.length > 0 ? (

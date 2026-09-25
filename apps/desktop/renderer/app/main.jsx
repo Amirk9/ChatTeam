@@ -7,6 +7,7 @@ import { WorkspaceProvider } from '../stores/workspace.store.jsx';
 import { ChannelProvider } from '../stores/channel.store.jsx';
 import { MessageProvider } from '../stores/message.store.jsx';
 import { DMProvider } from '../stores/dm.store.jsx';
+import { ThemeProvider } from '../stores/theme.store.jsx';
 import { CallProvider } from '../stores/call.store.jsx';
 import { PresenceProvider } from '../stores/presence.store.jsx';
 import './index.css';

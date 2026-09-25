@@ -82,10 +82,10 @@ export default function MessageItem({ message, channelId, onReply, compact, high
   }
 
   return (
-    <div id={`msg-${message.id}`} className={`px-5 py-1.5 hover:bg-gray-50 group relative ${compact ? '' : 'mt-2'} ${highlight ? 'bg-yellow-100 ring-2 ring-yellow-400 rounded' : ''}`} onMouseEnter={() => setHover(true)} onMouseLeave={() => { setHover(false); setPicking(false); }}>
+    <div id={`msg-${message.id}`} className={`px-5 py-1.5 hover:bg-gray-50 dark:hover:bg-white/5 group relative ${compact ? '' : 'mt-2'} ${highlight ? 'bg-yellow-100 dark:bg-yellow-900/30 ring-2 ring-yellow-400 rounded' : ''}`} onMouseEnter={() => setHover(true)} onMouseLeave={() => { setHover(false); setPicking(false); }}>
       <div className="flex gap-3">
         {compact ? (
-          <span className="w-9 shrink-0 text-[11px] text-gray-400 pt-1">{hover ? timeOf(message.createdAt) : ''}</span>
+          <span className="w-9 shrink-0 text-[11px] text-gray-400 dark:text-white/30 pt-1">{hover ? timeOf(message.createdAt) : ''}</span>
         ) : (
           <div className="w-9 h-9 shrink-0 rounded-md bg-[#4A154B] text-white flex items-center justify-center font-bold">
             {(message.sender.displayName || '?').slice(0, 1).toUpperCase()}
@@ -94,17 +94,17 @@ export default function MessageItem({ message, channelId, onReply, compact, high
         <div className="flex-1 min-w-0">
           {!compact ? (
             <p className="text-sm">
-              <span className="font-bold mr-2">{message.sender.displayName}</span>
-              <span className="text-xs text-gray-400">{timeOf(message.createdAt)}</span>
-              {message.edited ? <span className="text-xs text-gray-400 ml-1">(edited)</span> : null}
+              <span className="font-bold mr-2 text-[#1d1c1d] dark:text-white">{message.sender.displayName}</span>
+              <span className="text-xs text-gray-400 dark:text-white/40">{timeOf(message.createdAt)}</span>
+              {message.edited ? <span className="text-xs text-gray-400 dark:text-white/40 ml-1">(edited)</span> : null}
             </p>
           ) : null}
           {editing ? (
             <form onSubmit={saveEdit} className="mt-1">              <textarea value={draft} onChange={(e) => setDraft(e.target.value)} rows={3}
-                className="w-full border border-gray-300 rounded-md p-2 text-sm outline-none focus:ring-2 focus:ring-[#611f69]" />
+                className="w-full border border-gray-300 dark:border-white/15 dark:bg-white/5 dark:text-white rounded-md p-2 text-sm outline-none focus:ring-2 focus:ring-[#611f69]" />
               <div className="flex gap-2 mt-1">
                 <button type="submit" className="text-xs px-3 py-1 rounded bg-[#611f69] text-white">Save</button>
-                <button type="button" onClick={() => setEditing(false)} className="text-xs px-3 py-1 rounded border border-gray-300">Cancel</button>
+                <button type="button" onClick={() => setEditing(false)} className="text-xs px-3 py-1 rounded border border-gray-300 dark:border-white/15">Cancel</button>
               </div>
             </form>
           ) : (
@@ -117,7 +117,7 @@ export default function MessageItem({ message, channelId, onReply, compact, high
             <div className="flex flex-wrap gap-1 mt-1">
               {message.reactions.map((r) => (
                 <button key={r.emoji} onClick={() => toggle(r.emoji, r.me)}
-                  className={`text-xs px-2 py-0.5 rounded-full border ${r.me ? 'bg-blue-50 border-blue-400' : 'bg-gray-50 border-gray-200 hover:border-gray-400'}`}>
+                  className={`text-xs px-2 py-0.5 rounded-full border ${r.me ? 'bg-blue-50 dark:bg-blue-900/40 border-blue-400' : 'bg-gray-50 dark:bg-white/5 border-gray-200 dark:border-white/15 hover:border-gray-400'}`}>
                   {r.emoji} {r.count}
                 </button>
               ))}
@@ -127,14 +127,14 @@ export default function MessageItem({ message, channelId, onReply, compact, high
             <div className="flex flex-wrap gap-1 mt-1">
               {message.buttons.map((b) => (
                 <button key={b.id} onClick={() => clickButton(b)} disabled={clicking === b.id}
-                  className="text-xs px-3 py-1 rounded-md border border-[#611f69] text-[#611f69] hover:bg-[#611f69] hover:text-white disabled:opacity-50">
+                  className="text-xs px-3 py-1 rounded-md border border-[#611f69] dark:border-[#8e4a8f] text-[#611f69] dark:text-[#d7a9d7] hover:bg-[#611f69] hover:text-white disabled:opacity-50">
                   {clicking === b.id ? '…' : b.label}
                 </button>
               ))}
             </div>
           ) : null}
           {message.replyCount && !message.parentMessageId ? (
-            <button onClick={() => onReply(message.id)} className="text-xs text-[#1264A3] hover:underline mt-1">
+            <button onClick={() => onReply(message.id)} className="text-xs text-[#1264A3] dark:text-sky-300 hover:underline mt-1">
               {message.replyCount} {message.replyCount === 1 ? 'reply' : 'replies'} →
             </button>
           ) : null}
@@ -142,18 +142,18 @@ export default function MessageItem({ message, channelId, onReply, compact, high
       </div>
 
       {hover && !editing ? (
-        <div className="absolute -top-3 right-4 flex bg-white border border-gray-200 rounded-md shadow-sm text-sm">
-          <button title="React" onClick={() => setPicking((p) => !p)} className="px-2 py-0.5 hover:bg-gray-100 rounded-l-md">😊</button>
-          <button title="Reply in thread" onClick={() => onReply(message.parentMessageId || message.id)} className="px-2 py-0.5 hover:bg-gray-100">💬</button>
-          {mine ? <button title="Edit" onClick={() => { setDraft(message.content); setEditing(true); }} className="px-2 py-0.5 hover:bg-gray-100">✏️</button> : null}
-          <button title="Delete" onClick={remove} className="px-2 py-0.5 hover:bg-gray-100 rounded-r-md">🗑️</button>
+        <div className="absolute -top-3 right-4 flex bg-white dark:bg-[#222529] dark:border-white/15 border border-gray-200 rounded-md shadow-sm text-sm">
+          <button title="React" onClick={() => setPicking((p) => !p)} className="px-2 py-0.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-l-md">😊</button>
+          <button title="Reply in thread" onClick={() => onReply(message.parentMessageId || message.id)} className="px-2 py-0.5 hover:bg-gray-100 dark:hover:bg-white/10">💬</button>
+          {mine ? <button title="Edit" onClick={() => { setDraft(message.content); setEditing(true); }} className="px-2 py-0.5 hover:bg-gray-100 dark:hover:bg-white/10">✏️</button> : null}
+          <button title="Delete" onClick={remove} className="px-2 py-0.5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-r-md">🗑️</button>
         </div>
       ) : null}
       {picking ? (
-        <div className="absolute top-6 right-4 bg-white border border-gray-200 rounded-lg shadow-lg p-1 flex gap-0.5 z-10">
+        <div className="absolute top-6 right-4 bg-white dark:bg-[#222529] dark:border-white/15 border border-gray-200 rounded-lg shadow-lg p-1 flex gap-0.5 z-10">
           {QUICK_EMOJI.map((e) => (
             <button key={e} onClick={() => { toggle(e, message.reactions?.some((r) => r.emoji === e && r.me)); setPicking(false); }}
-              className="text-lg px-1 hover:bg-gray-100 rounded">{e}</button>
+              className="text-lg px-1 hover:bg-gray-100 dark:hover:bg-white/10 rounded">{e}</button>
           ))}
         </div>
       ) : null}

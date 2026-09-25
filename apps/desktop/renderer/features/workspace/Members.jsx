@@ -77,15 +77,15 @@ export default function Members() {
   const canManage = ['owner', 'admin'].includes(current.role);
 
   return (
-    <div className="p-6 max-w-3xl font-sans">
+    <div className="p-6 max-w-3xl font-sans text-[#1d1c1d] dark:text-white">
       <h2 className="text-xl font-bold mb-1">Members of {current.name}</h2>
-      <p className="text-sm text-gray-500 mb-4">Invite teammates, assign roles, remove members — like Slack.</p>
+      <p className="text-sm text-gray-500 dark:text-white/50 mb-4">Invite teammates, assign roles, remove members — like Slack.</p>
       {error ? <div className="mb-3 rounded-md bg-red-50 border border-red-200 text-red-700 text-sm px-3 py-2">{error}</div> : null}
 
-      <form onSubmit={invite} className="bg-white border border-gray-200 rounded-xl p-4 mb-4 flex flex-col sm:flex-row gap-2">
+      <form onSubmit={invite} className="bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl p-4 mb-4 flex flex-col sm:flex-row gap-2">
         <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email (optional — blank = shareable link)"
-          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[#611f69]" />
-        <select value={role} onChange={(e) => setRole(e.target.value)} className="px-3 py-2 border border-gray-300 rounded-lg text-sm">
+          className="flex-1 px-3 py-2 border border-gray-300 dark:border-white/15 dark:bg-white/5 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[#611f69]" />
+        <select value={role} onChange={(e) => setRole(e.target.value)} className="px-3 py-2 border border-gray-300 dark:border-white/15 dark:bg-white/5 rounded-lg text-sm">
           {['member', 'guest', 'moderator', 'admin'].map((r) => <option key={r} value={r}>{r}</option>)}
         </select>
         <button type="submit" className="px-4 py-2 rounded-lg bg-[#611f69] hover:bg-[#4A154B] text-white text-sm font-semibold">Invite</button>
@@ -96,8 +96,8 @@ export default function Members() {
         </div>
       ) : null}
 
-      {loading ? <p className="text-sm text-gray-500">Loading members...</p> : (
-        <ul className="bg-white border border-gray-200 rounded-xl divide-y divide-gray-100">
+      {loading ? <p className="text-sm text-gray-500 dark:text-white/40">Loading members...</p> : (
+        <ul className="bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl divide-y divide-gray-100 dark:divide-white/10">
           {members.map((m) => (
             <li key={m.user.id} className="px-4 py-3 flex items-center gap-3">
               <div className="relative">
@@ -105,16 +105,16 @@ export default function Members() {
                   {(m.user.displayName || '?').slice(0, 1).toUpperCase()}
                 </div>
                 <span title={presence[m.user.id]?.state || 'OFFLINE'}
-                  className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white ${presence[m.user.id] ? 'bg-green-500' : 'bg-gray-300'}`} />
+                  className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-white dark:border-[#1A1D21] ${presence[m.user.id] ? 'bg-green-500' : 'bg-gray-300'}`} />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold truncate">{m.user.displayName}</p>
-                <p className="text-xs text-gray-500 truncate">{m.user.email}</p>
+                <p className="text-xs text-gray-500 dark:text-white/40 truncate">{m.user.email}</p>
               </div>
               <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${ROLE_COLORS[m.role] || 'bg-gray-100'}`}>{m.role}</span>
               {canManage && m.role !== 'owner' ? (
                 <>
-                  <select value={m.role} onChange={(e) => changeRole(m.user.id, e.target.value)} className="text-xs border border-gray-300 rounded-md px-1 py-1">
+                  <select value={m.role} onChange={(e) => changeRole(m.user.id, e.target.value)} className="text-xs border border-gray-300 dark:border-white/15 dark:bg-white/5 rounded-md px-1 py-1">
                     {['member', 'guest', 'moderator', 'admin'].map((r) => <option key={r} value={r}>{r}</option>)}
                   </select>
                   <button onClick={() => remove(m.user.id)} className="text-xs text-red-600 hover:underline">Remove</button>

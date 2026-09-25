@@ -53,32 +53,32 @@ export function Attachment({ att }) {
   }
 
   return (
-    <div className="mt-2 max-w-md border border-gray-200 rounded-lg overflow-hidden">
+    <div className="mt-2 max-w-md border border-gray-200 dark:border-white/10 rounded-lg overflow-hidden">
       {error ? <p className="px-3 py-2 text-xs text-red-600">Preview unavailable ({error})</p> : null}
       {!url && !error ? <p className="px-3 py-6 text-xs text-gray-400 text-center">Loading preview...</p> : null}
       {url && isImage ? (
         <a href={url} target="_blank" rel="noreferrer">
-          <img src={url} alt={att.filename} className="max-h-64 w-auto object-contain bg-gray-50" loading="lazy" />
+          <img src={url} alt={att.filename} className="max-h-64 w-auto object-contain bg-gray-50 dark:bg-black/30" loading="lazy" />
         </a>
       ) : null}
       {url && !isImage && att.mimeType === 'application/pdf' ? (
-        <iframe src={url} title={att.filename} className="w-full h-64 bg-gray-50" />
+        <iframe src={url} title={att.filename} className="w-full h-64 bg-gray-50 dark:bg-black/30" />
       ) : null}
       {url && kind === 'video' ? <video src={url} controls className="max-h-64 w-full bg-black" /> : null}
       {url && kind === 'audio' ? <audio src={url} controls className="w-full mt-1" /> : null}
-      <div className="flex items-center gap-2 px-3 py-2 bg-gray-50">
+      <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 dark:bg-white/5">
         <span className="text-lg">📄</span>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold truncate">{att.filename}</p>
-          <p className="text-xs text-gray-500">
+          <p className="text-sm font-semibold truncate text-[#1d1c1d] dark:text-white">{att.filename}</p>
+          <p className="text-xs text-gray-500 dark:text-white/40">
             {formatSize(att.size)} · {att.mimeType}
             {att.width && att.height ? ` · ${att.width}×${att.height}` : ''}
           </p>
         </div>
-        <button onClick={() => setSharing(true)} className="text-xs px-2 py-1 rounded border border-gray-300 bg-white hover:bg-gray-100" title="Share to channel">
+        <button onClick={() => setSharing(true)} className="text-xs px-2 py-1 rounded border border-gray-300 dark:border-white/15 bg-white dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10" title="Share to channel">
           ↗ Share
         </button>
-        <button onClick={save} disabled={downloading} className="text-xs px-2 py-1 rounded border border-gray-300 bg-white hover:bg-gray-100">
+        <button onClick={save} disabled={downloading} className="text-xs px-2 py-1 rounded border border-gray-300 dark:border-white/15 bg-white dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10">
           {downloading ? '...' : '⬇ Download'}
         </button>
       </div>

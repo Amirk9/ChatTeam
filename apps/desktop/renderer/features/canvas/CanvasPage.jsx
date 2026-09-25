@@ -26,18 +26,18 @@ export function CanvasList() {
   }
 
   return (
-    <div className="p-6 max-w-3xl w-full mx-auto overflow-y-auto">
+    <div className="p-6 max-w-3xl w-full mx-auto overflow-y-auto text-[#1d1c1d] dark:text-white">
       <div className="flex items-center mb-4">
         <h2 className="text-xl font-bold flex-1">Canvas</h2>
         <button onClick={create} className="text-sm px-4 py-1.5 rounded bg-[#611f69] text-white">+ New canvas</button>
       </div>
-      {docs.length === 0 ? <p className="text-sm text-gray-500">No canvases yet — Slack-style docs with checklists, tables, images and comments.</p> : null}
+      {docs.length === 0 ? <p className="text-sm text-gray-500 dark:text-white/40">No canvases yet — Slack-style docs with checklists, tables, images and comments.</p> : null}
       <ul className="space-y-2">
         {docs.map((d) => (
           <li key={d.id}>
-            <Link to={`/canvas/${d.id}`} className="block border border-gray-200 rounded-lg p-3 hover:border-[#611f69]">
+            <Link to={`/canvas/${d.id}`} className="block border border-gray-200 dark:border-white/10 rounded-lg p-3 hover:border-[#611f69]">
               <p className="font-semibold text-sm">📄 {d.title}</p>
-              <p className="text-xs text-gray-400">Updated {new Date(d.updatedAt).toLocaleString()}</p>
+              <p className="text-xs text-gray-400 dark:text-white/30">Updated {new Date(d.updatedAt).toLocaleString()}</p>
             </Link>
           </li>
         ))}
@@ -148,10 +148,10 @@ export default function CanvasPage() {
   }
 
   if (error && !canvas) return <p className="p-6 text-sm text-red-600">{error}</p>;
-  if (!canvas) return <p className="p-6 text-sm text-gray-500">Loading canvas…</p>;
+  if (!canvas) return <p className="p-6 text-sm text-gray-500 dark:text-white/40">Loading canvas…</p>;
 
   return (
-    <div className="flex-1 flex min-h-0">
+    <div className="flex-1 flex min-h-0 text-[#1d1c1d] dark:text-white">
       <div className="flex-1 overflow-y-auto p-6 max-w-3xl w-full mx-auto">
         <form onSubmit={saveTitle} className="flex gap-2 mb-4">
           <input value={title} onChange={(e) => setTitle(e.target.value)} className="flex-1 text-2xl font-bold outline-none border-b border-transparent focus:border-gray-300" />
@@ -166,23 +166,23 @@ export default function CanvasPage() {
         </div>
         <div className="flex flex-wrap gap-1 mt-3">
           {KINDS.map((k) => (
-            <button key={k} onClick={() => addBlock(k)} className="text-xs px-2 py-1 rounded border border-gray-300 hover:bg-gray-50 capitalize">+ {k}</button>
+            <button key={k} onClick={() => addBlock(k)} className="text-xs px-2 py-1 rounded border border-gray-300 dark:border-white/15 hover:bg-gray-50 dark:hover:bg-white/10 capitalize">+ {k}</button>
           ))}
         </div>
-        <p className="text-[11px] text-gray-400 mt-3">Co-edited live — concurrent edits converge (last-write-wins per block).</p>
+        <p className="text-[11px] text-gray-400 dark:text-white/30 mt-3">Co-edited live — concurrent edits converge (last-write-wins per block).</p>
       </div>
-      <aside className="w-72 shrink-0 border-l border-gray-200 p-4 overflow-y-auto hidden md:block">
+      <aside className="w-72 shrink-0 border-l border-gray-200 dark:border-white/10 p-4 overflow-y-auto hidden md:block">
         <h4 className="font-bold text-sm mb-2">Comments ({comments.length})</h4>
         <ul className="space-y-2 mb-3">
           {comments.map((c) => (
             <li key={c.id} className="text-sm border border-gray-200 rounded-md p-2">
-              <p className="text-xs text-gray-500 mb-1">{c.author || 'Someone'} · {new Date(c.created_at).toLocaleString()}</p>
+              <p className="text-xs text-gray-500 dark:text-white/40 mb-1">{c.author || 'Someone'} · {new Date(c.created_at).toLocaleString()}</p>
               <p>{c.content}</p>
             </li>
           ))}
         </ul>
         <form onSubmit={postComment} className="flex gap-1">
-          <input value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Comment…" className="flex-1 border border-gray-300 rounded-md px-2 py-1 text-sm" />
+          <input value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Comment…" className="flex-1 border border-gray-300 dark:border-white/15 dark:bg-white/5 rounded-md px-2 py-1 text-sm" />
           <button className="text-xs px-2 py-1 rounded bg-[#611f69] text-white">Post</button>
         </form>
       </aside>
@@ -192,7 +192,7 @@ export default function CanvasPage() {
 
 function BlockEditor({ block, onChange, onRemove }) {
   if (block.delete) return null;
-  const common = 'w-full outline-none border border-transparent focus:border-gray-300 rounded px-2 py-1';
+  const common = 'w-full outline-none border border-transparent focus:border-gray-300 dark:focus:border-white/20 rounded px-2 py-1 bg-transparent';
   return (
     <div className="group flex gap-1 items-start">
       <div className="flex-1">
@@ -201,7 +201,7 @@ function BlockEditor({ block, onChange, onRemove }) {
         ) : block.kind === 'checklist' ? (
           <label className="flex gap-2 items-start px-2 py-1">
             <input type="checkbox" checked={Boolean(block.data?.checked)} onChange={(e) => onChange({ data: { ...block.data, checked: e.target.checked } })} className="mt-1" />
-            <input value={block.content} onChange={(e) => onChange({ content: e.target.value })} placeholder="Checklist item" className={`flex-1 outline-none ${block.data?.checked ? 'line-through text-gray-400' : ''}`} />
+            <input value={block.content} onChange={(e) => onChange({ content: e.target.value })} placeholder="Checklist item" className={`flex-1 outline-none ${block.data?.checked ? 'line-through text-gray-400 dark:text-white/30' : ''}`} />
           </label>
         ) : block.kind === 'code' ? (
           <textarea value={block.content} onChange={(e) => onChange({ content: e.target.value })} placeholder="code…" rows={3} className={`${common} font-mono text-sm bg-gray-900 text-gray-100`} />
@@ -217,13 +217,13 @@ function BlockEditor({ block, onChange, onRemove }) {
           <table className="text-sm border-collapse mt-1">
             <tbody>
               {block.content.split('\n').map((row, ri) => (
-                <tr key={ri}>{row.split('|').map((cell, ci) => <td key={ci} className="border border-gray-300 px-2 py-0.5">{cell.trim()}</td>)}</tr>
+                <tr key={ri}>{row.split('|').map((cell, ci) => <td key={ci} className="border border-gray-300 dark:border-white/15 px-2 py-0.5">{cell.trim()}</td>)}</tr>
               ))}
             </tbody>
           </table>
         ) : null}
       </div>
-      <button onClick={onRemove} className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-red-600 text-sm px-1" title="Delete block">×</button>
+      <button onClick={onRemove} className="opacity-0 group-hover:opacity-100 text-gray-400 dark:text-white/30 hover:text-red-600 text-sm px-1" title="Delete block">×</button>
     </div>
   );
 }

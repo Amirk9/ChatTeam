@@ -77,7 +77,7 @@ export function DMList() {
   );
 }
 
-function NewDMModal({ workspaceId, onClose, onCreated }) {
+export function NewDMModal({ workspaceId, onClose, onCreated }) {
   const { user } = useAuth();
   const [members, setMembers] = useState([]);
   const [picked, setPicked] = useState([]);
@@ -116,18 +116,18 @@ function NewDMModal({ workspaceId, onClose, onCreated }) {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4" onClick={onClose}>
-      <div className="bg-white text-[#1d1c1d] rounded-xl shadow-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-white dark:bg-[#1A1D21] dark:text-white rounded-xl shadow-xl w-full max-w-md p-6" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-bold">New direct message</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl leading-none">×</button>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 text-xl leading-none">×</button>
         </div>
         <form onSubmit={create}>
           {error ? <p className="mb-2 text-sm text-red-600">{error}</p> : null}
-          <input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Search people..." className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm mb-2 outline-none focus:ring-2 focus:ring-[#611f69]" />
-          <ul className="max-h-56 overflow-y-auto border border-gray-200 rounded-md mb-2">
+          <input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Search people..." className="w-full border border-gray-300 dark:border-white/15 dark:bg-white/5 rounded-md px-3 py-2 text-sm mb-2 outline-none focus:ring-2 focus:ring-[#611f69]" />
+          <ul className="max-h-56 overflow-y-auto border border-gray-200 dark:border-white/10 rounded-md mb-2">
             {options.map((m) => (
               <li key={m.user.id}>
-                <label className="flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-gray-50 cursor-pointer">
+                <label className="flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-gray-50 dark:hover:bg-white/10 cursor-pointer">
                   <input type="checkbox" checked={picked.includes(m.user.id)} onChange={() => toggle(m.user.id)} />
                   <span className="font-semibold truncate">{m.user.displayName}</span>
                   <span className="text-xs text-gray-400 truncate">{m.user.email}</span>
@@ -137,7 +137,7 @@ function NewDMModal({ workspaceId, onClose, onCreated }) {
             {options.length === 0 ? <li className="px-3 py-2 text-sm text-gray-400">No matches</li> : null}
           </ul>
           {picked.length > 1 ? (
-            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Group name (optional)" className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm mb-2 outline-none focus:ring-2 focus:ring-[#611f69]" />
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Group name (optional)" className="w-full border border-gray-300 dark:border-white/15 dark:bg-white/5 rounded-md px-3 py-2 text-sm mb-2 outline-none focus:ring-2 focus:ring-[#611f69]" />
           ) : null}
           <button type="submit" disabled={busy || !picked.length} className="w-full text-sm px-4 py-2 rounded bg-[#611f69] text-white disabled:opacity-40">
             {busy ? 'Starting...' : picked.length > 1 ? `Start group message (${picked.length + 1})` : 'Message'}

@@ -50,16 +50,16 @@ export default function WorkflowsPage() {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-6 max-w-3xl w-full mx-auto">
+    <div className="flex-1 overflow-y-auto p-6 max-w-3xl w-full mx-auto text-[#1d1c1d] dark:text-white">
       <h2 className="text-xl font-bold mb-1">Workflows</h2>
-      <p className="text-sm text-gray-500 mb-4">Trigger → steps → result automations, like Slack's Workflow Builder.</p>
+      <p className="text-sm text-gray-500 dark:text-white/40 mb-4">Trigger → steps → result automations, like Slack's Workflow Builder.</p>
       {error ? <p className="text-sm text-red-600 mb-2">{error}</p> : null}
-      <form onSubmit={onboard} className="border border-gray-200 rounded-xl p-4 mb-4">
+      <form onSubmit={onboard} className="border border-gray-200 dark:border-white/10 rounded-xl p-4 mb-4">
         <h3 className="font-bold text-sm mb-1">👋 Employee onboarding template</h3>
-        <p className="text-xs text-gray-500 mb-2">Creates an onboarding channel, posts a welcome checklist, invites the hire, notifies HR.</p>
+        <p className="text-xs text-gray-500 dark:text-white/40 mb-2">Creates an onboarding channel, posts a welcome checklist, invites the hire, notifies HR.</p>
         <div className="flex flex-wrap gap-2">
-          <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="new.hire@company.com" className="flex-1 min-w-52 border border-gray-300 rounded-md px-2 py-1.5 text-sm" />
-          <select value={hrId} onChange={(e) => setHrId(e.target.value)} className="border border-gray-300 rounded-md px-2 py-1.5 text-sm">
+          <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="new.hire@company.com" className="flex-1 min-w-52 border border-gray-300 dark:border-white/15 dark:bg-white/5 rounded-md px-2 py-1.5 text-sm" />
+          <select value={hrId} onChange={(e) => setHrId(e.target.value)} className="border border-gray-300 dark:border-white/15 dark:bg-white/5 rounded-md px-2 py-1.5 text-sm">
             <option value="">No HR notify</option>
             {members.map((m) => <option key={m.user.id} value={m.user.id}>{m.user.displayName}</option>)}
           </select>
@@ -71,12 +71,12 @@ export default function WorkflowsPage() {
       ) : null}
       <ul className="space-y-2">
         {flows.map((f) => (
-          <li key={f.id} className="border border-gray-200 rounded-lg p-3 flex items-center gap-2">
+          <li key={f.id} className="border border-gray-200 dark:border-white/10 rounded-lg p-3 flex items-center gap-2">
             <div className="flex-1">
               <p className="font-semibold text-sm">⚙️ {f.name}</p>
               <p className="text-xs text-gray-400">{f.steps?.length || 0} steps · {f.description}</p>
             </div>
-            <button onClick={() => run(f.id)} className="text-xs px-3 py-1.5 rounded border border-gray-300 hover:bg-gray-50">Run</button>
+            <button onClick={() => run(f.id)} className="text-xs px-3 py-1.5 rounded border border-gray-300 dark:border-white/15 hover:bg-gray-50 dark:hover:bg-white/10">Run</button>
           </li>
         ))}
         {flows.length === 0 ? <p className="text-sm text-gray-400">No workflows yet — run onboarding to create one.</p> : null}
