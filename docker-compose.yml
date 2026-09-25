@@ -33,6 +33,55 @@ services:
       timeout: 3s
       retries: 10
 
+  server:
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
+    container_name: teamchat-server
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      PORT: 3000
+      DATABASE_URL: postgres://teamchat:teamchat@postgres:5432/teamchat
+      REDIS_URL: redis://redis:6379
+      CORS_ORIGIN: http://localhost:5173
+      LOG_LEVEL: info
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./apps/server/src:/app/apps/server/src
+      - /app/node_modules
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/version').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  desktop:
+    build:
+      context: .
+      dockerfile: apps/desktop/Dockerfile
+    container_name: teamchat-desktop
+    restart: unless-stopped
+    depends_on:
+      server:
+        condition: service_healthy
+    environment:
+      VITE_API_URL: http://localhost:3000
+    ports:
+      - "5173:5173"
+    volumes:
+      # Live-mount source dirs only — never the package root itself, or the
+      # image's pnpm node_modules links get shadowed (MODULE_NOT_FOUND).
+      - ./apps/desktop/renderer:/app/apps/desktop/renderer
+      - ./apps/desktop/electron:/app/apps/desktop/electron
+      - ./apps/desktop/index.html:/app/apps/desktop/index.html
+      - /app/node_modules
+
   # NOTE (2026-09-25): MinIO removed its free Docker Hub images (repo archived),
   # so this service is opt-in via profile until Phase 7 picks a maintained
   # S3-compatible alternative (e.g. SeaweedFS/LocalStack).

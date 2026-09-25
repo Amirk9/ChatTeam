@@ -1,0 +1,10 @@
+node_modules
+dist
+out
+build
+coverage
+.git
+ChatTeam
+*.log
+.env
+.env.local
