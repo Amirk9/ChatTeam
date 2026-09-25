@@ -12,7 +12,9 @@ contextBridge.exposeInMainWorld('teamchat', {
     getSession: () => ipcRenderer.invoke('auth:getSession').catch(() => null),
   },
   files: {
-    // Phase 7 implements open/save dialogs
-    open: () => ipcRenderer.invoke('files:open').catch(() => []),
+    // Native dialogs in Electron; browser builds use <input type=file> fallback.
+    open: (opts) => ipcRenderer.invoke('files:open', opts || {}).catch(() => []),
+    save: (filename) => ipcRenderer.invoke('files:save', { filename }).catch(() => null),
+    write: (filePath, base64) => ipcRenderer.invoke('files:write', { filePath, base64 }),
   },
 });

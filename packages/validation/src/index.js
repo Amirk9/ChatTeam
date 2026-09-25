@@ -100,6 +100,7 @@ export const messageCreateSchema = z.object({
   content: z.string().min(1).max(8000),
   parentMessageId: z.string().uuid().nullable().optional(),
   mentions: z.array(z.string().uuid()).max(50).optional().default([]),
+  attachmentIds: z.array(z.string().uuid()).max(5).optional().default([]),
 });
 
 export const messagePatchSchema = z.object({

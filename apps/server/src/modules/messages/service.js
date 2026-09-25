@@ -1,7 +1,7 @@
 import { getOne, query } from '../../database/db.js';
 
 // Serialize a message row (+ sender join) into the API shape.
-export function serializeMessage(row, { reactions = [], mentionIds = [] } = {}) {
+export function serializeMessage(row, { reactions = [], mentionIds = [], attachments = [] } = {}) {
   const deleted = Boolean(row.deleted_at);
   const counts = {};
   const mine = new Set();
@@ -29,6 +29,13 @@ export function serializeMessage(row, { reactions = [], mentionIds = [] } = {}) 
     replyCount: Number(row.reply_count || 0),
     reactions: Object.entries(counts).map(([emoji, count]) => ({ emoji, count, me: mine.has(emoji) })),
     mentions: mentionIds,
+    attachments: attachments.filter((a) => a.message_id === row.id).map((a) => ({
+      fileId: a.file_id,
+      filename: a.filename,
+      mimeType: a.mime_type,
+      size: Number(a.size),
+      url: a.url,
+    })),
   };
 }
 
@@ -42,8 +49,13 @@ export async function loadReactions(messageIds, meId) {
   return r.rows;
 }
 
-export async function loadMentions(messageIds) {
-  if (!messageIds.length) return {};
+export async function loadAttachments(messageIds) {
+  if (!messageIds.length) return [];
+  const r = await query('SELECT message_id, file_id, filename, mime_type, size, url FROM message_attachments WHERE message_id = ANY($1)', [messageIds]);
+  return r.rows;
+}
+
+export async function loadMentions(messageIds) {  if (!messageIds.length) return {};
   const r = await query('SELECT message_id, mentioned_user_id FROM message_mentions WHERE message_id = ANY($1)', [messageIds]);
   const map = {};
   for (const row of r.rows) {

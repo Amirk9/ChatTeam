@@ -3,6 +3,7 @@ import { useAuth } from '../../stores/auth.store.jsx';
 import { useMessages } from '../../stores/message.store.jsx';
 import { messageApi } from '../../services/messages.js';
 import { Markdown } from './Markdown.jsx';
+import { AttachmentList } from '../files/Attachments.jsx';
 
 const QUICK_EMOJI = ['👍', '❤️', '😂', '🎉', '😮', '😢', '👀', '✅'];
 
@@ -80,8 +81,7 @@ export default function MessageItem({ message, channelId, onReply, compact }) {
             </p>
           ) : null}
           {editing ? (
-            <form onSubmit={saveEdit} className="mt-1">
-              <textarea value={draft} onChange={(e) => setDraft(e.target.value)} rows={3}
+            <form onSubmit={saveEdit} className="mt-1">              <textarea value={draft} onChange={(e) => setDraft(e.target.value)} rows={3}
                 className="w-full border border-gray-300 rounded-md p-2 text-sm outline-none focus:ring-2 focus:ring-[#611f69]" />
               <div className="flex gap-2 mt-1">
                 <button type="submit" className="text-xs px-3 py-1 rounded bg-[#611f69] text-white">Save</button>
@@ -89,7 +89,10 @@ export default function MessageItem({ message, channelId, onReply, compact }) {
               </div>
             </form>
           ) : (
-            <Markdown text={message.content} />
+            <>
+              <Markdown text={message.content} />
+              <AttachmentList attachments={message.attachments} />
+            </>
           )}
           {message.reactions?.length ? (
             <div className="flex flex-wrap gap-1 mt-1">

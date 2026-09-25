@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useMessages } from '../../stores/message.store.jsx';
 import { workspaceApi } from '../../services/workspaces.js';
 import { typingEmit } from '../../stores/presence.store.jsx';
-
+import { uploadFiles, pickFiles, formatSize } from '../../services/files.js';
 const EMOJI = ['👍', '❤️', '😂', '🎉', '😮', '😢', '👀', '✅', '🔥', '👏', '🙏', '💯'];
 
 // Slack-style composer: @mention autocomplete, emoji picker, code button.
@@ -14,7 +14,10 @@ export default function Composer({ channel, workspaceId, replyTo = null, onSent,
   const [hi, setHi] = useState(0);
   const [showEmoji, setShowEmoji] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [pending, setPending] = useState([]); // {id?, name, size, progress, error}
+  const [dragOver, setDragOver] = useState(false);
   const boxRef = useRef(null);
+  const fileInput = useRef(null);
   const lastType = useRef(0);
 
   useEffect(() => {
@@ -64,13 +67,15 @@ export default function Composer({ channel, workspaceId, replyTo = null, onSent,
   }
 
   async function submit() {
-    const content = text.trim();
-    if (!content || busy) return;
+    const done = pending.filter((p) => p.id);
+    const content = text.trim() || done.map((p) => p.name).join(', ');
+    if ((!content && !done.length) || busy || pending.some((p) => p.uploading)) return;
     setBusy(true);
     typingEmit(channel.id, 'stop');
     try {
-      const msg = await send(channel.id, { content, parentMessageId: replyTo });
+      const msg = await send(channel.id, { content, parentMessageId: replyTo, attachmentIds: done.map((p) => p.id) });
       setText('');
+      setPending([]);
       setQuery(null);
       if (replyTo) {
         await openThread(channel.id, replyTo).catch(() => refreshThread());
@@ -81,9 +86,54 @@ export default function Composer({ channel, workspaceId, replyTo = null, onSent,
     }
   }
 
+  async function addFiles(list) {
+    const files = [...list].slice(0, 5 - pending.length);
+    for (const f of files) {
+      const entry = { key: `${Date.now()}-${f.name}`, name: f.name, size: f.size, progress: 0, uploading: true, error: '' };
+      setPending((p) => [...p, entry]);
+      try {
+        const uploaded = await uploadFiles(workspaceId, [f], (r) => {
+          setPending((p) => p.map((x) => (x.key === entry.key ? { ...x, progress: r } : x)));
+        });
+        setPending((p) => p.map((x) => (x.key === entry.key ? { ...x, uploading: false, progress: 1, id: uploaded[0].id } : x)));
+      } catch (err) {
+        setPending((p) => p.map((x) => (x.key === entry.key ? { ...x, uploading: false, error: err.message } : x)));
+      }
+    }
+  }
+
+  async function attachClicked() {
+    const native = await pickFiles();
+    if (native) {
+      addFiles(native);
+    } else {
+      fileInput.current?.click();
+    }
+  }
+
   return (
     <div className={mini ? '' : 'p-4'}>
-      <div className="border border-gray-300 rounded-lg relative">
+      <div
+        className={`border rounded-lg relative ${dragOver ? 'border-[#611f69] ring-2 ring-[#611f69]' : 'border-gray-300'}`}
+        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={(e) => { e.preventDefault(); setDragOver(false); if (e.dataTransfer?.files?.length) addFiles(e.dataTransfer.files); }}
+      >
+        <input ref={fileInput} type="file" multiple className="hidden" onChange={(e) => { addFiles(e.target.files); e.target.value = ''; }} />
+        {pending.length > 0 ? (
+          <div className="px-3 pt-2 space-y-1">
+            {pending.map((p) => (
+              <div key={p.key} className="flex items-center gap-2 text-xs bg-gray-50 border border-gray-200 rounded-md px-2 py-1">
+                <span className="font-semibold truncate flex-1">📎 {p.name} <span className="text-gray-400 font-normal">({formatSize(p.size)})</span></span>
+                {p.error ? <span className="text-red-600">{p.error}</span> : null}
+                {p.uploading ? (
+                  <progress value={p.progress} max={1} className="w-20 h-1.5 accent-[#611f69]" />
+                ) : null}
+                <button onClick={() => setPending((list) => list.filter((x) => x.key !== p.key))} className="text-gray-400 hover:text-gray-600">×</button>
+              </div>
+            ))}
+          </div>
+        ) : null}
         {query !== null && matches.length > 0 ? (
           <div className="absolute bottom-full mb-1 left-0 w-64 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-20">
             {matches.map((m, i) => (
@@ -113,10 +163,11 @@ export default function Composer({ channel, workspaceId, replyTo = null, onSent,
         />
         <div className="flex items-center gap-1 px-3 py-1.5 border-t border-gray-100 text-gray-500 text-sm relative">
           <button onClick={() => setShowEmoji((s) => !s)} className="hover:bg-gray-100 rounded px-1.5 py-0.5" title="Emoji">😊</button>
+          <button onClick={attachClicked} className="hover:bg-gray-100 rounded px-1.5 py-0.5" title="Attach files">📎</button>
           <button onClick={insertCode} className="hover:bg-gray-100 rounded px-1.5 py-0.5 font-mono text-xs" title="Code block">{'</>'}</button>
-          <span className="text-xs text-gray-400 ml-1">**bold** *italic* `code` @mention supported</span>
+          <span className="text-xs text-gray-400 ml-1 hidden sm:inline">**bold** *italic* `code` @mention supported</span>
           <div className="flex-1" />
-          <button onClick={submit} disabled={busy || !text.trim()} className="text-xs px-3 py-1 rounded bg-[#611f69] text-white disabled:opacity-40">Send</button>
+          <button onClick={submit} disabled={busy || (!text.trim() && !pending.some((p) => p.id)) || pending.some((p) => p.uploading)} className="text-xs px-3 py-1 rounded bg-[#611f69] text-white disabled:opacity-40">Send</button>
           {showEmoji ? (
             <div className="absolute bottom-full mb-1 left-0 bg-white border border-gray-200 rounded-lg shadow-lg p-2 grid grid-cols-6 gap-0.5 z-20">
               {EMOJI.map((e) => (

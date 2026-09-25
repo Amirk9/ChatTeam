@@ -34,3 +34,7 @@ app.on('window-all-closed', () => {
 
 ipcMain.handle('system:ping', () => 'pong');
 ipcMain.handle('system:version', () => ({ version: '0.1.0', name: 'teamchat-desktop' }));
+
+// Native file dialogs (plan 07). Dynamically imported so browser/vite builds
+// that never run this file don't pay for electron-only modules.
+import('./../ipc/file.ipc.js').then((m) => m.registerFileIpc()).catch(() => {});

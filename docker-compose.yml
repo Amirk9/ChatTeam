@@ -44,6 +44,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      seaweed:
+        condition: service_started
     environment:
       PORT: 3000
       DATABASE_URL: postgres://teamchat:teamchat@postgres:5432/teamchat
@@ -52,6 +54,13 @@ services:
       LOG_LEVEL: info
       JWT_SECRET: dev-only-change-me
       REFRESH_TOKEN_EXPIRES_IN_DAYS: 30
+      S3_ENDPOINT: http://seaweed:8333
+      S3_BUCKET: teamchat
+      S3_REGION: us-east-1
+      S3_ACCESS_KEY: teamchat
+      S3_SECRET_KEY: teamchat-dev-only
+      S3_FORCE_PATH_STYLE: 'true'
+      FILE_MAX_MB: 50
     ports:
       - "3000:3000"
     volumes:
@@ -84,31 +93,20 @@ services:
       - ./apps/desktop/electron:/app/apps/desktop/electron
       - ./apps/desktop/index.html:/app/apps/desktop/index.html
 
-  # NOTE (2026-09-25): MinIO removed its free Docker Hub images (repo archived),
-  # so this service is opt-in via profile until Phase 7 picks a maintained
-  # S3-compatible alternative (e.g. SeaweedFS/LocalStack).
-  # Start it explicitly with: docker compose --profile storage up -d
-  # Nothing before Phase 7 (file sharing) needs object storage.
-  minio:
-    profiles: ["storage"]
-    image: minio/minio:latest
-    container_name: teamchat-minio
+  # Object storage (S3-compatible). MinIO removed its free Docker Hub images,
+  # so we use SeaweedFS. Any S3 target works — swapping is config-only
+  # (S3_* env). Nothing before Phase 7 needs object storage.
+  seaweed:
+    image: chrislusf/seaweedfs:latest
+    container_name: teamchat-seaweed
     restart: unless-stopped
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
+    command: server -dir=/data -master.volumeSizeLimitMB=256 -s3 -filer
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "8333:8333"
+      - "8888:8888"
     volumes:
-      - miniodata:/data
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 10s
-      timeout: 3s
-      retries: 10
+      - seaweeddata:/data
 
 volumes:
   pgdata:
-  miniodata:
+  seaweeddata:

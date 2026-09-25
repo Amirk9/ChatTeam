@@ -9,6 +9,7 @@ import {
   accessMessage,
   loadReactions,
   loadMentions,
+  loadAttachments,
   resolveMentionEmails,
   filterWorkspaceMembers,
 } from './service.js';
@@ -32,7 +33,7 @@ messagesRouter.post('/channels/:id/messages', requireAuth, requireChannel, async
   try {
     if (!req.channelRole) return res.status(403).json({ error: { code: 'FORBIDDEN', message: 'Join the channel to post' } });
     if (req.channel.is_archived) return res.status(403).json({ error: { code: 'ARCHIVED', message: 'Channel is archived' } });
-    const { content, parentMessageId, mentions } = validate(messageCreateSchema, req.body);
+    const { content, parentMessageId, mentions, attachmentIds } = validate(messageCreateSchema, req.body);
     if (parentMessageId) {
       const parent = await getOne('SELECT id, channel_id FROM messages WHERE id = $1 AND deleted_at IS NULL', [parentMessageId]);
       if (!parent || parent.channel_id !== req.channel.id) {
@@ -50,8 +51,16 @@ messagesRouter.post('/channels/:id/messages', requireAuth, requireChannel, async
     for (const uid of all) {
       await query('INSERT INTO message_mentions(message_id, mentioned_user_id) VALUES ($1,$2) ON CONFLICT DO NOTHING', [msg.id, uid]);
     }
+    // Link sender-owned, unattached files from this workspace (Slack attach flow).
+    for (const fid of [...new Set(attachmentIds)]) {
+      const f = await getOne('SELECT * FROM files WHERE id = $1 AND uploader_id = $2 AND workspace_id = $3 AND message_id IS NULL', [fid, req.user.id, req.channel.workspace_id]);
+      if (!f) return res.status(400).json({ error: { code: 'BAD_REQUEST', message: 'Unknown or already-attached file' } });
+      await query('UPDATE files SET message_id = $1 WHERE id = $2', [msg.id, fid]);
+      await query('INSERT INTO message_attachments(message_id, file_id, filename, mime_type, size, url) VALUES ($1,$2,$3,$4,$5,$6)', [msg.id, f.id, f.filename, f.mime_type, f.size, `/files/${f.id}`]);
+    }
     const full = await getMessage(msg.id);
-    const out = serializeMessage(full, { mentionIds: all });
+    const attachments = await loadAttachments([msg.id]);
+    const out = serializeMessage(full, { mentionIds: all, attachments });
     await publish({ type: 'message.created', payload: { message: out } }, [`channel:${req.channel.id}`]);
     // Notifications: mentions + thread replies (Slack rules).
     for (const uid of all) {
@@ -93,9 +102,9 @@ messagesRouter.get('/channels/:id/messages', requireAuth, requireChannel, async 
     const hasMore = r.rows.length > limit;
     const page = (hasMore ? r.rows.slice(0, limit) : r.rows).reverse();
     const ids = page.map((m) => m.id);
-    const [reactions, mentions] = await Promise.all([loadReactions(ids, req.user.id), loadMentions(ids)]);
+    const [reactions, mentions, attachments] = await Promise.all([loadReactions(ids, req.user.id), loadMentions(ids), loadAttachments(ids)]);
     res.json({
-      messages: page.map((m) => serializeMessage(m, { reactions, mentionIds: mentions[m.id] || [] })),
+      messages: page.map((m) => serializeMessage(m, { reactions, mentionIds: mentions[m.id] || [], attachments })),
       nextCursor: hasMore ? page[0].id : null,
     });
   } catch (e) {
@@ -119,10 +128,10 @@ messagesRouter.get('/messages/:id/thread', requireAuth, async (req, res, next) =
     );
     const all = [root, ...r.rows];
     const ids = all.map((m) => m.id);
-    const [reactions, mentions] = await Promise.all([loadReactions(ids, req.user.id), loadMentions(ids)]);
+    const [reactions, mentions, attachments] = await Promise.all([loadReactions(ids, req.user.id), loadMentions(ids), loadAttachments(ids)]);
     res.json({
       channelId: channel.id,
-      messages: all.map((m) => serializeMessage(m, { reactions, mentionIds: mentions[m.id] || [] })),
+      messages: all.map((m) => serializeMessage(m, { reactions, mentionIds: mentions[m.id] || [], attachments })),
     });
   } catch (e) {
     next(e);
@@ -145,8 +154,8 @@ messagesRouter.patch('/messages/:id', requireAuth, async (req, res, next) => {
     await query('INSERT INTO message_edits(message_id, content) VALUES ($1,$2)', [message.id, message.content]);
     const updated = await getOne('UPDATE messages SET content = $1, updated_at = now() WHERE id = $2 RETURNING *', [content, message.id]);
     const full = await getMessage(updated.id);
-    const [reactions, mentions] = await Promise.all([loadReactions([full.id], req.user.id), loadMentions([full.id])]);
-    const out = serializeMessage(full, { reactions, mentionIds: mentions[full.id] || [] });
+    const [reactions, mentions, attachments] = await Promise.all([loadReactions([full.id], req.user.id), loadMentions([full.id]), loadAttachments([full.id])]);
+    const out = serializeMessage(full, { reactions, mentionIds: mentions[full.id] || [], attachments });
     await publish({ type: 'message.updated', payload: { message: out } }, [`channel:${channel.id}`]);
     res.json({ message: out });
   } catch (e) {
@@ -185,7 +194,7 @@ messagesRouter.post('/messages/:id/reactions', requireAuth, async (req, res, nex
     const reactions = await loadReactions([message.id], req.user.id);
     const full = await getMessage(message.id);
     await publish({ type: 'reaction.added', payload: { messageId: message.id, channelId: channel.id, emoji, userId: req.user.id } }, [`channel:${channel.id}`]);
-    res.status(201).json({ message: serializeMessage(full, { reactions }) });
+    res.status(201).json({ message: serializeMessage(full, { reactions, attachments: await loadAttachments([message.id]) }) });
   } catch (e) {
     next(e);
   }
@@ -201,7 +210,7 @@ messagesRouter.delete('/messages/:id/reactions', requireAuth, async (req, res, n
     const reactions = await loadReactions([message.id], req.user.id);
     const full = await getMessage(message.id);
     await publish({ type: 'reaction.removed', payload: { messageId: message.id, channelId: message.channel_id, emoji, userId: req.user.id } }, [`channel:${message.channel_id}`]);
-    res.json({ message: serializeMessage(full, { reactions }) });
+    res.json({ message: serializeMessage(full, { reactions, attachments: await loadAttachments([message.id]) }) });
   } catch (e) {
     next(e);
   }
