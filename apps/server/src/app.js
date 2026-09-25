@@ -13,6 +13,7 @@ import { messagesRouter } from './modules/messages/routes.js';
 import { notificationsRouter } from './modules/notifications/routes.js';
 import { presenceRouter } from './modules/presence/routes.js';
 import { filesRouter } from './modules/files/routes.js';
+import { searchRouter } from './modules/search/routes.js';
 
 export function createApp() {
   const app = express();
@@ -29,6 +30,7 @@ export function createApp() {
   app.use(notificationsRouter);
   app.use(presenceRouter);
   app.use(filesRouter);
+  app.use(searchRouter);
   app.use(notFound);
   app.use(errorHandler);
   return app;

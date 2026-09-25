@@ -137,3 +137,14 @@ export const fileShareSchema = z.object({
   content: z.string().max(8000).optional(),
   parentMessageId: z.string().uuid().nullable().optional(),
 });
+
+// ---- Phase 8: search ----
+export const searchTypeSchema = z.enum(['messages', 'users', 'channels', 'files', 'all']);
+
+export const searchQuerySchema = z.object({
+  q: z.string().min(1).max(500),
+  workspaceId: z.string().uuid(),
+  type: searchTypeSchema.optional().default('all'),
+  limit: z.coerce.number().int().min(1).max(50).optional().default(20),
+  cursor: z.string().max(64).optional(),
+});

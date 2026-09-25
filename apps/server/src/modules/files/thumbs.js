@@ -1,6 +1,6 @@
--- Phase 7 thumbnail job (plan 07: image thumbnails via sharp, async).
--- Extracts dimensions + 320px preview for images. No-op for non-images
--- or when sharp is unavailable (falls back to original, dims best-effort).
+// Phase 7 thumbnail job (plan 07: image thumbnails via sharp, async).
+// Extracts dimensions + 320px preview for images. No-op for non-images
+// or when sharp is unavailable (falls back to original, dims best-effort).
 
 let sharpLoader = null;
 async function loadSharp() {
