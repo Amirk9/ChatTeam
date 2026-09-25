@@ -1,0 +1,24 @@
+import { randomUUID } from 'node:crypto';
+
+// Adds x-request-id + consistent error envelope {error:{code,message,details}}.
+export function requestId(req, _res, next) {
+  req.id = req.headers['x-request-id'] || randomUUID();
+  next();
+}
+
+export function notFound(_req, res) {
+  res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Not found' } });
+}
+
+// eslint-disable-next-line no-unused-vars
+export function errorHandler(err, req, res, _next) {
+  const status = err.status || 500;
+  res.status(status).json({
+    error: {
+      code: err.code || (status === 500 ? 'INTERNAL' : 'BAD_REQUEST'),
+      message: status === 500 ? 'Internal server error' : err.message,
+      details: err.details,
+      requestId: req.id,
+    },
+  });
+}

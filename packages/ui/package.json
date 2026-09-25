@@ -1,0 +1,9 @@
+{
+  "name": "@teamchat/ui",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./src/index.jsx",
+  "peerDependencies": {
+    "react": "^18"
+  }
+}

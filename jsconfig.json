@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "checkJs": false,
+    "target": "ES2022",
+    "module": "ESNext",
+    "jsx": "react-jsx",
+    "paths": {
+      "@teamchat/shared": ["./packages/shared/src/index.js"],
+      "@teamchat/models": ["./packages/models/src/index.js"],
+      "@teamchat/validation": ["./packages/validation/src/index.js"],
+      "@teamchat/api-client": ["./packages/api-client/src/index.js"]
+    }
+  },
+  "exclude": ["node_modules", "dist", "out"]
+}

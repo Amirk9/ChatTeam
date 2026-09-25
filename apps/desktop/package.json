@@ -1,0 +1,22 @@
+{
+  "name": "@teamchat/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "electron/main/main.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "test": "echo \"desktop: no tests yet (Phase 1 stub)\"",
+    "electron:dev": "electron ./electron/main/main.js"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.1",
+    "electron": "^32.0.0",
+    "vite": "^5.4.8"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "name": "teamchat",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "TeamChat — Slack-like desktop collaboration platform (ReactJS + JavaScript, no TypeScript)",
+  "packageManager": "pnpm@9.0.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "powershell -File ./scripts/dev.ps1",
+    "bootstrap": "powershell -File ./scripts/bootstrap.ps1",
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "lint": "eslint . --max-warnings=0",
+    "format": "prettier --write .",
+    "no-ts-guard": "node ./scripts/no-ts-guard.js"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.11.0",
+    "prettier": "^3.3.3"
+  }
+}
