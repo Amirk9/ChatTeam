@@ -112,10 +112,10 @@ messagesRouter.get('/channels/:id/messages', requireAuth, requireChannel, async 
   }
 });
 
-// GET /messages/:id/thread — root + chronological replies.
+// GET /messages/:id/thread — root + chronological replies (channels + DMs).
 messagesRouter.get('/messages/:id/thread', requireAuth, async (req, res, next) => {
   try {
-    const { message, channel } = await accessMessage(req.params.id, req.user.id);
+    const { message, channel, dm } = await accessMessage(req.params.id, req.user.id);
     const rootId = message.parent_message_id || message.id;
     const root = message.parent_message_id ? await getMessage(rootId) : message;
     if (!root) return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Thread root not found' } });
@@ -129,24 +129,29 @@ messagesRouter.get('/messages/:id/thread', requireAuth, async (req, res, next) =
     const all = [root, ...r.rows];
     const ids = all.map((m) => m.id);
     const [reactions, mentions, attachments] = await Promise.all([loadReactions(ids, req.user.id), loadMentions(ids), loadAttachments(ids)]);
+    const home = dm ? dm.id : null;
+    const messages = all.map((m) => {
+      const s = serializeMessage(m, { reactions, mentionIds: mentions[m.id] || [], attachments });
+      return home ? { ...s, channelId: null, dmConversationId: home } : s;
+    });
     res.json({
-      channelId: channel.id,
-      messages: all.map((m) => serializeMessage(m, { reactions, mentionIds: mentions[m.id] || [], attachments })),
+      ...(dm ? { dmConversationId: dm.id } : { channelId: channel.id }),
+      messages,
     });
   } catch (e) {
     next(e);
   }
 });
 
-// PATCH /messages/:id — author only, 24h window, history kept.
+// PATCH /messages/:id — author only, 24h window, history kept (channels + DMs).
 messagesRouter.patch('/messages/:id', requireAuth, async (req, res, next) => {
   try {
-    const { message, channel } = await accessMessage(req.params.id, req.user.id);
+    const { message, channel, dm } = await accessMessage(req.params.id, req.user.id);
     if (message.sender_id !== req.user.id) {
       return res.status(403).json({ error: { code: 'FORBIDDEN', message: 'Only the author can edit' } });
     }
     if (message.deleted_at) return res.status(403).json({ error: { code: 'DELETED', message: 'Message is deleted' } });
-    if (channel.is_archived) return res.status(403).json({ error: { code: 'ARCHIVED', message: 'Channel is archived' } });
+    if (channel?.is_archived) return res.status(403).json({ error: { code: 'ARCHIVED', message: 'Channel is archived' } });
     if (Date.now() - new Date(message.created_at).getTime() > EDIT_WINDOW_MS) {
       return res.status(403).json({ error: { code: 'EDIT_WINDOW', message: 'Edit window (24h) expired' } });
     }
@@ -155,7 +160,13 @@ messagesRouter.patch('/messages/:id', requireAuth, async (req, res, next) => {
     const updated = await getOne('UPDATE messages SET content = $1, updated_at = now() WHERE id = $2 RETURNING *', [content, message.id]);
     const full = await getMessage(updated.id);
     const [reactions, mentions, attachments] = await Promise.all([loadReactions([full.id], req.user.id), loadMentions([full.id]), loadAttachments([full.id])]);
-    const out = serializeMessage(full, { reactions, mentionIds: mentions[full.id] || [], attachments });
+    const base = serializeMessage(full, { reactions, mentionIds: mentions[full.id] || [], attachments });
+    if (dm) {
+      const out = { ...base, channelId: null, dmConversationId: dm.id };
+      await publish({ type: 'dm.message.updated', payload: { message: out } }, [`dm:${dm.id}`]);
+      return res.json({ message: out });
+    }
+    const out = base;
     await publish({ type: 'message.updated', payload: { message: out } }, [`channel:${channel.id}`]);
     res.json({ message: out });
   } catch (e) {
@@ -163,18 +174,22 @@ messagesRouter.patch('/messages/:id', requireAuth, async (req, res, next) => {
   }
 });
 
-// DELETE /messages/:id — soft delete; author or DELETE_MESSAGE holders.
+// DELETE /messages/:id — soft delete; author or DELETE_MESSAGE holders (channels + DMs).
 messagesRouter.delete('/messages/:id', requireAuth, async (req, res, next) => {
   try {
-    const { message, channel } = await accessMessage(req.params.id, req.user.id);
+    const { message, channel, dm } = await accessMessage(req.params.id, req.user.id);
     if (message.deleted_at) return res.json({ ok: true });
     const isAuthor = message.sender_id === req.user.id;
-    const canMod = await hasPermission(channel.workspace_id, req.user.id, 'DELETE_MESSAGE');
+    const canMod = dm ? false : await hasPermission(channel.workspace_id, req.user.id, 'DELETE_MESSAGE');
     if (!isAuthor && !canMod) {
       return res.status(403).json({ error: { code: 'FORBIDDEN', message: 'Cannot delete this message' } });
     }
     await query('UPDATE messages SET deleted_at = now() WHERE id = $1', [message.id]);
     const full = await getMessage(message.id);
+    if (dm) {
+      await publish({ type: 'dm.message.deleted', payload: { id: message.id, dmId: dm.id } }, [`dm:${dm.id}`]);
+      return res.json({ message: { ...serializeMessage(full), channelId: null, dmConversationId: dm.id } });
+    }
     await publish({ type: 'message.deleted', payload: { id: message.id, channelId: channel.id } }, [`channel:${channel.id}`]);
     res.json({ message: serializeMessage(full) });
   } catch (e) {
@@ -182,10 +197,20 @@ messagesRouter.delete('/messages/:id', requireAuth, async (req, res, next) => {
   }
 });
 
-// POST /messages/:id/reactions — idempotent toggle target.
+// POST /messages/:id/reactions — idempotent toggle target (channels + DMs).
 messagesRouter.post('/messages/:id/reactions', requireAuth, async (req, res, next) => {
   try {
-    const { message, channel, chRole } = await accessMessage(req.params.id, req.user.id);
+    const { message, channel, dm, chRole } = await accessMessage(req.params.id, req.user.id);
+    if (dm) {
+      if (message.deleted_at) return res.status(403).json({ error: { code: 'DELETED', message: 'Message is deleted' } });
+      const { emoji } = validate(reactionSchema, req.body);
+      await query('INSERT INTO message_reactions(message_id, user_id, emoji) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING', [message.id, req.user.id, emoji]);
+      const reactions = await loadReactions([message.id], req.user.id);
+      const full = await getMessage(message.id);
+      const out = { ...serializeMessage(full, { reactions, attachments: await loadAttachments([message.id]) }), channelId: null, dmConversationId: dm.id };
+      await publish({ type: 'dm.reaction.added', payload: { messageId: message.id, dmId: dm.id, emoji, userId: req.user.id } }, [`dm:${dm.id}`]);
+      return res.status(201).json({ message: out });
+    }
     if (!chRole) return res.status(403).json({ error: { code: 'FORBIDDEN', message: 'Join the channel to react' } });
     if (channel.is_archived) return res.status(403).json({ error: { code: 'ARCHIVED', message: 'Channel is archived' } });
     if (message.deleted_at) return res.status(403).json({ error: { code: 'DELETED', message: 'Message is deleted' } });
@@ -200,10 +225,19 @@ messagesRouter.post('/messages/:id/reactions', requireAuth, async (req, res, nex
   }
 });
 
-// DELETE /messages/:id/reactions?emoji= — remove own reaction.
+// DELETE /messages/:id/reactions?emoji= — remove own reaction (channels + DMs).
 messagesRouter.delete('/messages/:id/reactions', requireAuth, async (req, res, next) => {
   try {
-    const { message, chRole } = await accessMessage(req.params.id, req.user.id);
+    const { message, chRole, dm } = await accessMessage(req.params.id, req.user.id);
+    if (dm) {
+      const { emoji } = validate(reactionSchema, req.query);
+      await query('DELETE FROM message_reactions WHERE message_id = $1 AND user_id = $2 AND emoji = $3', [message.id, req.user.id, emoji]);
+      const reactions = await loadReactions([message.id], req.user.id);
+      const full = await getMessage(message.id);
+      const out = { ...serializeMessage(full, { reactions, attachments: await loadAttachments([message.id]) }), channelId: null, dmConversationId: dm.id };
+      await publish({ type: 'dm.reaction.removed', payload: { messageId: message.id, dmId: dm.id, emoji, userId: req.user.id } }, [`dm:${dm.id}`]);
+      return res.json({ message: out });
+    }
     if (!chRole) return res.status(403).json({ error: { code: 'FORBIDDEN', message: 'Join the channel first' } });
     const { emoji } = validate(reactionSchema, req.query);
     await query('DELETE FROM message_reactions WHERE message_id = $1 AND user_id = $2 AND emoji = $3', [message.id, req.user.id, emoji]);

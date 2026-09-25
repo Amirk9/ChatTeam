@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../stores/auth.store.jsx';
 import { useMessages } from '../../stores/message.store.jsx';
+import { useDMs } from '../../stores/dm.store.jsx';
 import { messageApi } from '../../services/messages.js';
 import { Markdown } from './Markdown.jsx';
 import { AttachmentList } from '../files/Attachments.jsx';
@@ -21,9 +22,16 @@ export function dayOf(iso) {
   return d.toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' });
 }
 
-export default function MessageItem({ message, channelId, onReply, compact }) {
+export default function MessageItem({ message, channelId, onReply, compact, highlight }) {
   const { user } = useAuth();
   const { patchMessage, refreshThread, threadRootId } = useMessages();
+  const dmStore = useDMs();
+  // DM messages (channelId null + dmConversationId) patch into the DM store.
+  const dmId = message.dmConversationId || null;
+  const applyPatch = (msg) => {
+    if (dmId) dmStore.patchMessage(dmId, msg);
+    else patchMessage(channelId, msg);
+  };
   const [hover, setHover] = useState(false);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(message.content || '');
@@ -34,14 +42,14 @@ export default function MessageItem({ message, channelId, onReply, compact }) {
     const updated = has
       ? await messageApi.unreact(message.id, emoji)
       : await messageApi.react(message.id, emoji);
-    patchMessage(channelId, updated);
+    applyPatch(updated);
     if (threadRootId && (threadRootId === message.id || threadRootId === message.parentMessageId)) refreshThread();
   }
 
   async function saveEdit(e) {
     e.preventDefault();
     const updated = await messageApi.edit(message.id, draft);
-    patchMessage(channelId, updated);
+    applyPatch(updated);
     if (threadRootId) refreshThread();
     setEditing(false);
   }
@@ -49,7 +57,7 @@ export default function MessageItem({ message, channelId, onReply, compact }) {
   async function remove() {
     if (!window.confirm('Delete this message?')) return;
     const res = await messageApi.remove(message.id);
-    patchMessage(channelId, res.message || { ...message, deleted: true, content: null });
+    applyPatch(res.message || { ...message, deleted: true, content: null });
     if (threadRootId) refreshThread();
   }
 
@@ -63,7 +71,7 @@ export default function MessageItem({ message, channelId, onReply, compact }) {
   }
 
   return (
-    <div className={`px-5 py-1.5 hover:bg-gray-50 group relative ${compact ? '' : 'mt-2'}`} onMouseEnter={() => setHover(true)} onMouseLeave={() => { setHover(false); setPicking(false); }}>
+    <div id={`msg-${message.id}`} className={`px-5 py-1.5 hover:bg-gray-50 group relative ${compact ? '' : 'mt-2'} ${highlight ? 'bg-yellow-100 ring-2 ring-yellow-400 rounded' : ''}`} onMouseEnter={() => setHover(true)} onMouseLeave={() => { setHover(false); setPicking(false); }}>
       <div className="flex gap-3">
         {compact ? (
           <span className="w-9 shrink-0 text-[11px] text-gray-400 pt-1">{hover ? timeOf(message.createdAt) : ''}</span>

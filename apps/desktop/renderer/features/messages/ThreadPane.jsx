@@ -3,13 +3,14 @@ import { useMessages } from '../../stores/message.store.jsx';
 import MessageItem from './MessageItem.jsx';
 import Composer from './Composer.jsx';
 
-// Slack-style thread pane: root + replies + reply box.
-export default function ThreadPane({ channel, workspaceId }) {
+// Slack-style thread pane: root + replies + reply box (channels + DMs).
+export default function ThreadPane({ channel, dm, workspaceId }) {
   const { thread, threadRootId, closeThread, openThread } = useMessages();
 
   if (!threadRootId || !thread) return null;
   const [root, ...replies] = thread.messages.length ? thread.messages : [];
   if (!root) return null;
+  const target = dm || channel;
 
   return (
     <div className="w-96 shrink-0 border-l border-gray-200 bg-white flex flex-col min-h-0">
@@ -30,8 +31,8 @@ export default function ThreadPane({ channel, workspaceId }) {
           <MessageItem key={m.id} message={m} channelId={channel.id} onReply={() => {}} compact={false} />
         ))}
       </div>
-      <Composer channel={channel} workspaceId={workspaceId} replyTo={root.id} mini
-        onSent={() => openThread(channel.id, root.id)} />
+      <Composer channel={dm ? undefined : channel} dm={dm} workspaceId={workspaceId} replyTo={root.id} mini
+        onSent={() => openThread(target.id, root.id)} />
     </div>
   );
 }

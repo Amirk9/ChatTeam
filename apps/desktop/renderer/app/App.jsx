@@ -14,6 +14,10 @@ import MessageFeed from '../features/messages/MessageFeed.jsx';
 import Composer from '../features/messages/Composer.jsx';
 import ThreadPane from '../features/messages/ThreadPane.jsx';
 import Bell from '../features/notifications/Bell.jsx';
+import SearchBar from '../features/search/SearchBar.jsx';
+import SearchPage from '../features/search/SearchPage.jsx';
+import { DMList } from '../features/direct-messages/DMList.jsx';
+import DMPage from '../features/direct-messages/DMPage.jsx';
 import Members from '../features/workspace/Members.jsx';
 import Settings from '../features/workspace/Settings.jsx';
 import Profile from '../features/workspace/Profile.jsx';
@@ -116,9 +120,7 @@ function Shell() {
       <header className="h-11 shrink-0 bg-[#350d36] text-white flex items-center px-4 gap-3">
         <span className="font-bold">TeamChat</span>
         <div className="flex-1 flex justify-center">
-          <div className="w-full max-w-xl bg-white/10 hover:bg-white/20 rounded-md text-sm px-3 py-1 text-white/70 cursor-pointer">
-            Search (Phase 8)
-          </div>
+          <SearchBar workspaceId={current?.id} />
         </div>
         <div className="flex items-center gap-2">
           <Bell />
@@ -141,9 +143,7 @@ function Shell() {
               <SidebarItem to="/profile">Profile</SidebarItem>
             </ul>
             <p className="px-3 pb-1 text-xs font-semibold text-white/50 uppercase tracking-wide">Direct messages</p>
-            <ul className="space-y-0.5">
-              <li className="px-3 py-1 text-[15px] text-white/40">Coming in Phase 9</li>
-            </ul>
+            <DMList />
           </nav>
           <div className="p-3 border-t border-white/10 flex items-center gap-2">
             <div className="w-8 h-8 rounded-md bg-white/20 flex items-center justify-center font-bold">
@@ -160,6 +160,8 @@ function Shell() {
         <main className="flex-1 flex flex-col min-w-0 bg-white min-h-0">
           <Routes>
             <Route path="/" element={<Home />} />
+            <Route path="/dm/:id" element={<DMPage />} />
+            <Route path="/search" element={<SearchPage />} />
             <Route path="/members" element={<Members />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/profile" element={<Profile />} />

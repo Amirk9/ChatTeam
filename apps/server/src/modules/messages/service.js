@@ -77,11 +77,19 @@ export async function getMessage(id) {
   return getOne(`${MESSAGE_SELECT} WHERE m.id = $1`, [id]);
 }
 
-// Loads a message + enforces channel access for a user.
-// Returns { message, channel, wsRole, chRole } or throws { status }.
+// Loads a message + enforces channel OR DM access for a user.
+// Returns { message, channel?, dm?, wsRole?, chRole? } or throws { status }.
 export async function accessMessage(messageId, userId) {
   const message = await getMessage(messageId);
   if (!message) throw Object.assign(new Error('Message not found'), { status: 404, code: 'NOT_FOUND' });
+  if (message.dm_conversation_id) {
+    const dm = await getOne('SELECT * FROM direct_conversations WHERE id = $1', [message.dm_conversation_id]);
+    const wsMember = await getOne('SELECT * FROM workspace_members WHERE workspace_id = $1 AND user_id = $2', [dm.workspace_id, userId]);
+    if (!wsMember) throw Object.assign(new Error('Not a workspace member'), { status: 403, code: 'FORBIDDEN' });
+    const dmMember = await getOne('SELECT * FROM direct_conversation_members WHERE conversation_id = $1 AND user_id = $2', [dm.id, userId]);
+    if (!dmMember) throw Object.assign(new Error('Conversation not found'), { status: 404, code: 'NOT_FOUND' });
+    return { message, dm, wsRole: wsMember.role, chRole: null };
+  }
   const channel = await getOne('SELECT * FROM channels WHERE id = $1', [message.channel_id]);
   const wsMember = await getOne('SELECT * FROM workspace_members WHERE workspace_id = $1 AND user_id = $2', [channel.workspace_id, userId]);
   if (!wsMember) throw Object.assign(new Error('Not a workspace member'), { status: 403, code: 'FORBIDDEN' });

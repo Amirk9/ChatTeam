@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useMessages } from '../../stores/message.store.jsx';
 import { usePresence } from '../../stores/presence.store.jsx';
 import { messageApi } from '../../services/messages.js';
@@ -11,6 +11,24 @@ export default function MessageFeed({ channel, onReply, unreadFrom }) {
   const feed = byChannel[channel.id] || { messages: [], nextCursor: null };
   const bottomRef = useRef(null);
   const loadedRef = useRef(null);
+  const [jumpId, setJumpId] = useState(null);
+
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem('tc_jump');
+      if (!raw) return;
+      const j = JSON.parse(raw);
+      if (j.channelId === channel.id) {
+        setJumpId(j.messageId);
+        sessionStorage.removeItem('tc_jump');
+        const t = setTimeout(() => {
+          document.getElementById(`msg-${j.messageId}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        }, 600);
+        const c = setTimeout(() => setJumpId(null), 4000);
+        return () => { clearTimeout(t); clearTimeout(c); };
+      }
+    } catch {}
+  }, [channel.id, messages.length]);
 
   useEffect(() => {
     if (loadedRef.current !== channel.id) {
@@ -86,7 +104,7 @@ export default function MessageFeed({ channel, onReply, unreadFrom }) {
                 <div className="flex-1 border-t border-red-400" />
               </div>
             ) : null}
-            <MessageItem message={g.message} channelId={channel.id} onReply={onReply} compact={compact} />
+            <MessageItem message={g.message} channelId={channel.id} onReply={onReply} compact={compact} highlight={jumpId === g.message.id} />
           </React.Fragment>
         );
       })}

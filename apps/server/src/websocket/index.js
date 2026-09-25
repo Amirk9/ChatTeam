@@ -6,7 +6,7 @@ import { ensureRedis } from '../database/redis.js';
 import { logger } from '../common/logger.js';
 
 // Realtime gateway: Socket.IO + Redis pub/sub fan-out (plan 06, document §24).
-// Rooms: user:{id}, workspace:{wid}, channel:{cid}.
+// Rooms: user:{id}, workspace:{wid}, channel:{cid}, dm:{id} (Phase 09).
 // Scale-out safe: every instance publishes to Redis; instances ignore own echoes.
 
 const REDIS_CHANNEL = 'teamchat:events';
@@ -134,6 +134,8 @@ export function initRealtime(httpServer, corsOrigin) {
         [user.id]
       );
       for (const c of chs.rows) socket.join(`channel:${c.channel_id}`);
+      const dms = await query('SELECT conversation_id FROM direct_conversation_members WHERE user_id = $1', [user.id]);
+      for (const d of dms.rows) socket.join(`dm:${d.conversation_id}`);
     } catch (e) {
       logger.warn({ err: e.message }, 'realtime join failed');
     }
@@ -155,8 +157,25 @@ export function initRealtime(httpServer, corsOrigin) {
       if (typeof ack === 'function') ack(await getPresence(workspaceId));
     });
 
-    socket.on('typing.start', async ({ channelId }) => {
+    socket.on('typing.start', async ({ channelId, dmId }) => {
       try {
+        // DM typing (Phase 09): dmId or conversationId targets a DM room.
+        const targetDm = dmId;
+        if (targetDm) {
+          const mem = await getOne(
+            'SELECT 1 FROM direct_conversation_members WHERE conversation_id = $1 AND user_id = $2',
+            [targetDm, user.id]
+          );
+          if (!mem) return;
+          const redis = await ensureRedis();
+          await redis.set(`dmtyping:${targetDm}:${user.id}`, user.display_name, { EX: TYPING_TTL });
+          socket.to(`dm:${targetDm}`).emit('event', {
+            type: 'dm.typing',
+            payload: { dmId: targetDm, userId: user.id, displayName: user.display_name },
+          });
+          return;
+        }
+        if (!channelId) return;
         const ch = await getOne('SELECT id, workspace_id FROM channels WHERE id = $1', [channelId]);
         if (!ch) return;
         const member = await getOne(
@@ -173,10 +192,11 @@ export function initRealtime(httpServer, corsOrigin) {
       } catch {}
     });
 
-    socket.on('typing.stop', async ({ channelId }) => {
+    socket.on('typing.stop', async ({ channelId, dmId } = {}) => {
       try {
         const redis = await ensureRedis();
-        await redis.del(`typing:${channelId}:${user.id}`);
+        if (dmId) await redis.del(`dmtyping:${dmId}:${user.id}`);
+        if (channelId) await redis.del(`typing:${channelId}:${user.id}`);
       } catch {}
     });
 

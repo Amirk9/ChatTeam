@@ -127,15 +127,18 @@ function attachRowArgs(msgId, file) {
   ];
 }
 
-// Access rule (Slack parity): workspace member + if attached, channel access.
+// Access rule (Slack parity): workspace member + if attached, channel/DM access.
 export async function fileAccess(fileId, userId) {
   const file = await getOne('SELECT * FROM files WHERE id = $1', [fileId]);
   if (!file) throw Object.assign(new Error('File not found'), { status: 404, code: 'NOT_FOUND' });
   const wsMember = await getOne('SELECT role FROM workspace_members WHERE workspace_id = $1 AND user_id = $2', [file.workspace_id, userId]);
   if (!wsMember) throw Object.assign(new Error('Not a workspace member'), { status: 403, code: 'FORBIDDEN' });
   if (file.message_id) {
-    const msg = await getOne('SELECT channel_id FROM messages WHERE id = $1', [file.message_id]);
-    if (msg) {
+    const msg = await getOne('SELECT channel_id, dm_conversation_id FROM messages WHERE id = $1', [file.message_id]);
+    if (msg?.dm_conversation_id) {
+      const dm = await getOne('SELECT 1 FROM direct_conversation_members WHERE conversation_id = $1 AND user_id = $2', [msg.dm_conversation_id, userId]);
+      if (!dm) throw Object.assign(new Error('Conversation not found'), { status: 403, code: 'FORBIDDEN' });
+    } else if (msg?.channel_id) {
       const ch = await getOne('SELECT is_private FROM channels WHERE id = $1', [msg.channel_id]);
       if (ch?.is_private) {
         const cm = await getOne('SELECT 1 FROM channel_members WHERE channel_id = $1 AND user_id = $2', [msg.channel_id, userId]);

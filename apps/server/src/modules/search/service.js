@@ -173,9 +173,12 @@ export const SearchService = {
          AND ($3 = '%%' OR f.filename ILIKE $3 OR similarity(f.filename, $4) > 0.15)
           AND (
             f.message_id IS NULL OR EXISTS (
-              SELECT 1 FROM messages m JOIN channels c ON c.id = m.channel_id
+              SELECT 1 FROM messages m LEFT JOIN channels c ON c.id = m.channel_id
               WHERE m.id = f.message_id
-                AND (c.is_private = false OR EXISTS (SELECT 1 FROM channel_members cm WHERE cm.channel_id = c.id AND cm.user_id = $2))
+                AND (
+                  (m.dm_conversation_id IS NOT NULL AND EXISTS (SELECT 1 FROM direct_conversation_members dcm WHERE dcm.conversation_id = m.dm_conversation_id AND dcm.user_id = $2))
+                  OR (m.channel_id IS NOT NULL AND (c.is_private = false OR EXISTS (SELECT 1 FROM channel_members cm WHERE cm.channel_id = c.id AND cm.user_id = $2)))
+                )
             )
           )
        ORDER BY f.created_at DESC LIMIT $5 OFFSET $6`,

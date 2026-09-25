@@ -1,13 +1,18 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useMessages } from '../../stores/message.store.jsx';
+import { useDMs } from '../../stores/dm.store.jsx';
 import { workspaceApi } from '../../services/workspaces.js';
-import { typingEmit } from '../../stores/presence.store.jsx';
+import { typingEmit, dmTypingEmit } from '../../stores/presence.store.jsx';
 import { uploadFiles, pickFiles, formatSize } from '../../services/files.js';
 const EMOJI = ['👍', '❤️', '😂', '🎉', '😮', '😢', '👀', '✅', '🔥', '👏', '🙏', '💯'];
 
 // Slack-style composer: @mention autocomplete, emoji picker, code button.
-export default function Composer({ channel, workspaceId, replyTo = null, onSent, mini = false }) {
+// Channel mode: <Composer channel workspaceId />. DM mode: <Composer dm workspaceId />.
+export default function Composer({ channel, dm, workspaceId, replyTo = null, onSent, mini = false }) {
   const { send, refreshThread, openThread } = useMessages();
+  const dmStore = useDMs();
+  const target = dm || channel;
+  const isDm = Boolean(dm);
   const [text, setText] = useState('');
   const [members, setMembers] = useState([]);
   const [query, setQuery] = useState(null); // mention filter after last @
@@ -71,14 +76,17 @@ export default function Composer({ channel, workspaceId, replyTo = null, onSent,
     const content = text.trim() || done.map((p) => p.name).join(', ');
     if ((!content && !done.length) || busy || pending.some((p) => p.uploading)) return;
     setBusy(true);
-    typingEmit(channel.id, 'stop');
+    if (isDm) dmTypingEmit(dm.id, 'stop');
+    else typingEmit(channel.id, 'stop');
     try {
-      const msg = await send(channel.id, { content, parentMessageId: replyTo, attachmentIds: done.map((p) => p.id) });
+      const msg = isDm
+        ? await dmStore.send(dm.id, { content, parentMessageId: replyTo, attachmentIds: done.map((p) => p.id) })
+        : await send(channel.id, { content, parentMessageId: replyTo, attachmentIds: done.map((p) => p.id) });
       setText('');
       setPending([]);
       setQuery(null);
       if (replyTo) {
-        await openThread(channel.id, replyTo).catch(() => refreshThread());
+        await openThread(target.id, replyTo).catch(() => refreshThread());
       }
       onSent?.(msg);
     } finally {
@@ -154,11 +162,12 @@ export default function Composer({ channel, workspaceId, replyTo = null, onSent,
             trackMention(e.target.value);
             if (Date.now() - lastType.current > 2500 && e.target.value.trim()) {
               lastType.current = Date.now();
-              typingEmit(channel.id, 'start');
+              if (isDm) dmTypingEmit(dm.id, 'start');
+              else typingEmit(channel.id, 'start');
             }
           }}
           onKeyDown={onKey}
-          placeholder={replyTo ? 'Reply to thread...' : `Message #${channel.name}`}
+          placeholder={replyTo ? 'Reply to thread...' : isDm ? `Message ${dm.name || 'this conversation'}` : `Message #${channel.name}`}
           className="w-full px-4 py-3 text-sm outline-none resize-none rounded-t-lg"
         />
         <div className="flex items-center gap-1 px-3 py-1.5 border-t border-gray-100 text-gray-500 text-sm relative">

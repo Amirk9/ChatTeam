@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { useAuth } from './auth.store.jsx';
 import { useMessages } from './message.store.jsx';
+import { useDMs } from './dm.store.jsx';
 import { useChannels } from './channel.store.jsx';
 import { useWorkspace } from './workspace.store.jsx';
 import {
@@ -35,6 +36,7 @@ export function PresenceProvider({ children }) {
   const { user } = useAuth();
   const { current: workspace } = useWorkspace();
   const { patchMessage, patchReaction, refreshThread, threadRootId } = useMessages();
+  const { patchMessage: patchDmMessage, patchReaction: patchDmReaction, patchDm, refresh: refreshDms } = useDMs();
   const { refresh: refreshChannels } = useChannels();
   const [presence, setPresence] = useState({});
   const [typing, setTyping] = useState({});
@@ -53,9 +55,12 @@ export function PresenceProvider({ children }) {
   const refreshBadges = useCallback(() => {
     clearTimeout(badgeTimer.current);
     badgeTimer.current = setTimeout(() => {
-      if (workspace?.id) refreshChannels(workspace.id).catch(() => {});
+      if (workspace?.id) {
+        refreshChannels(workspace.id).catch(() => {});
+        refreshDms(workspace.id).catch(() => {});
+      }
     }, 800);
-  }, [workspace?.id, refreshChannels]);
+  }, [workspace?.id, refreshChannels, refreshDms]);
 
   const loadNotifications = useCallback(async () => {
     try {
@@ -127,13 +132,52 @@ export function PresenceProvider({ children }) {
       onRealtime('channel.archived', refreshBadges),
       onRealtime('channel.deleted', refreshBadges),
       onRealtime('user.typing', ({ channelId, userId, displayName }) => {
-        if (userId === user?.id) return;
+        if (userId === user?.id || !channelId) return;
         setTyping((prev) => ({ ...prev, [channelId]: { ...(prev[channelId] || {}), [userId]: { displayName, at: Date.now() } } }));
         setTimeout(() => {
           setTyping((prev) => {
             const ch = { ...(prev[channelId] || {}) };
             delete ch[userId];
             return { ...prev, [channelId]: ch };
+          });
+        }, 4500);
+      }),
+      // Phase 09 DM realtime: messages patch the DM store; typing keyed by dm id.
+      onRealtime('dm.message.created', ({ message }) => {
+        if (!message) return;
+        patchDmMessage(message.dmConversationId, message);
+        refreshBadges();
+      }),
+      onRealtime('dm.message.updated', ({ message }) => {
+        if (message) patchDmMessage(message.dmConversationId, message);
+      }),
+      onRealtime('dm.message.deleted', ({ id, dmId }) => {
+        patchDmMessage(dmId, { id, dmConversationId: dmId, deleted: true, content: null });
+        refreshBadges();
+        refreshThread();
+      }),
+      onRealtime('dm.reaction.added', ({ messageId, dmId, emoji, userId }) => {
+        patchDmReaction(dmId, messageId, emoji, userId, 1, user?.id);
+      }),
+      onRealtime('dm.reaction.removed', ({ messageId, dmId, emoji, userId }) => {
+        patchDmReaction(dmId, messageId, emoji, userId, -1, user?.id);
+      }),
+      onRealtime('dm.created', ({ conversation }) => {
+        if (conversation) { patchDm(conversation); refreshBadges(); }
+      }),
+      onRealtime('dm.updated', ({ conversation }) => {
+        if (conversation) patchDm(conversation);
+      }),
+      onRealtime('dm.read', () => refreshBadges()),
+      onRealtime('dm.typing', ({ dmId, userId, displayName }) => {
+        if (userId === user?.id || !dmId) return;
+        const key = `dm:${dmId}`;
+        setTyping((prev) => ({ ...prev, [key]: { ...(prev[key] || {}), [userId]: { displayName, at: Date.now() } } }));
+        setTimeout(() => {
+          setTyping((prev) => {
+            const ch = { ...(prev[key] || {}) };
+            delete ch[userId];
+            return { ...prev, [key]: ch };
           });
         }, 4500);
       }),
@@ -154,13 +198,14 @@ export function PresenceProvider({ children }) {
         beep(sound);
         if (user?.status !== 'DO_NOT_DISTURB' && 'Notification' in window && Notification.permission === 'granted') {
           try {
-            new Notification('TeamChat', { body: n.type === 'mention' ? 'You were mentioned' : 'New reply in your thread' });
+            const body = n.type === 'mention' ? 'You were mentioned' : n.type === 'dm' ? 'New direct message' : 'New reply in your thread';
+            new Notification('TeamChat', { body });
           } catch {}
         }
       }),
     ];
     return () => offs.forEach((off) => off());
-  }, [user?.id, workspace?.id, patchMessage, refreshThread, refreshBadges, sound]);
+  }, [user?.id, workspace?.id, patchMessage, patchDmMessage, patchDmReaction, patchDm, refreshThread, refreshBadges, refreshDms, sound]);
 
   return (
     <PresenceContext.Provider value={{ presence, typing, notifications, notifUnread, loadNotifications, markAllRead, sound, toggleSound }}>
@@ -177,4 +222,8 @@ export function usePresence() {
 
 export function typingEmit(channelId, phase) {
   emitRealtime(phase === 'stop' ? 'typing.stop' : 'typing.start', { channelId });
+}
+
+export function dmTypingEmit(dmId, phase) {
+  emitRealtime(phase === 'stop' ? 'typing.stop' : 'typing.start', { dmId });
 }

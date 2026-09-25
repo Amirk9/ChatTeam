@@ -138,6 +138,36 @@ export const fileShareSchema = z.object({
   parentMessageId: z.string().uuid().nullable().optional(),
 });
 
+// ---- Phase 9: direct messages ----
+export const dmCreateSchema = z.object({
+  userIds: z.array(z.string().uuid()).min(1).max(20),
+  name: z.string().min(1).max(80).optional(),
+});
+
+export const dmPatchSchema = z.object({
+  name: z.string().min(1).max(80),
+});
+
+export const dmMemberAddSchema = z.object({
+  userId: z.string().uuid(),
+});
+
+export const dmMessageCreateSchema = z.object({
+  content: z.string().min(1).max(8000),
+  parentMessageId: z.string().uuid().nullable().optional(),
+  mentions: z.array(z.string().uuid()).max(50).optional().default([]),
+  attachmentIds: z.array(z.string().uuid()).max(5).optional().default([]),
+});
+
+export const dmReadSchema = z.object({
+  lastReadMessageId: z.string().uuid(),
+});
+
+export const dmMessagesQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).optional().default(30),
+  before: z.string().uuid().optional(),
+});
+
 // ---- Phase 8: search ----
 export const searchTypeSchema = z.enum(['messages', 'users', 'channels', 'files', 'all']);
 
