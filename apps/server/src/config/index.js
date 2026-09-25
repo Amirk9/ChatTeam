@@ -14,4 +14,9 @@ export const config = {
   corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:5173',
   logLevel: process.env.LOG_LEVEL || 'info',
   version: '0.1.0',
+  // Phase 10: desktop compatibility + update feed (env-driven release channel).
+  minAppVersion: process.env.MIN_APP_VERSION || '0.1.0',
+  updateVersion: process.env.APP_LATEST_VERSION || null,
+  updateUrl: process.env.APP_UPDATE_URL || null,
+  updateNotes: process.env.APP_UPDATE_NOTES || '',
 };

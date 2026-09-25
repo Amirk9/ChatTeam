@@ -9,6 +9,7 @@ Thumbs.db
 .env.local
 apps/desktop/dist/
 apps/desktop/out/
+apps/desktop/release/
 apps/server/dist/
 coverage/
 .playwright/

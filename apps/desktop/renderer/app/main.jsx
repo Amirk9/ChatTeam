@@ -10,6 +10,25 @@ import { DMProvider } from '../stores/dm.store.jsx';
 import { PresenceProvider } from '../stores/presence.store.jsx';
 import './index.css';
 
+// Phase 10: forward renderer crashes to the main log + POST /crashes.
+if (typeof window !== 'undefined') {
+  const report = (error, stack) => {
+    try {
+      window.teamchat?.system?.logsWrite?.('error', `renderer: ${String(error).slice(0, 500)}`);
+    } catch {}
+    try {
+      const base = localStorage.getItem('tc_api_url') || import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      fetch(`${base}/crashes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ error: String(error).slice(0, 2000), stack: String(stack || '').slice(0, 5000), platform: navigator.platform, context: { url: location.href } }),
+      }).catch(() => {});
+    } catch {}
+  };
+  window.addEventListener('error', (e) => report(e.message, e.error?.stack));
+  window.addEventListener('unhandledrejection', (e) => report(e.reason?.message || e.reason, e.reason?.stack));
+}
+
 createRoot(document.getElementById('root')).render(
   <BrowserRouter>
     <AuthProvider>

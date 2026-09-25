@@ -1,0 +1,44 @@
+# Phase 10 packaging (electron-builder). Unsigned local builds work everywhere;
+# signed/release builds set CSC_* / APPLE_* env in CI (see .github/workflows).
+appId: com.teamchat.desktop
+productName: TeamChat
+copyright: Copyright © TeamChat
+directories:
+  output: release
+  buildResources: assets
+files:
+  - dist/renderer/**/*
+  - electron/**/*
+  - package.json
+extraMetadata:
+  main: electron/main/main.js
+protocols:
+  - name: TeamChat
+    schemes:
+      - teamchat
+win:
+  icon: assets/icon.ico
+  target:
+    - target: nsis
+      arch: [x64]
+    - target: portable
+      arch: [x64]
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  shortcutName: TeamChat
+mac:
+  # .icns is generated on a Mac during signed builds (iconutil); png fallback otherwise.
+  icon: assets/icon.png
+  category: public.app-category.social-networking
+  hardenedRuntime: true
+  target:
+    - dmg
+    - zip
+linux:
+  icon: assets/icon.png
+  category: Chat
+  target:
+    - AppImage
+    - deb
+publish: null

@@ -15,6 +15,7 @@ import { presenceRouter } from './modules/presence/routes.js';
 import { filesRouter } from './modules/files/routes.js';
 import { searchRouter } from './modules/search/routes.js';
 import { dmsRouter } from './modules/dms/routes.js';
+import { crashesRouter } from './modules/crashes/routes.js';
 
 export function createApp() {
   const app = express();
@@ -33,6 +34,7 @@ export function createApp() {
   app.use(filesRouter);
   app.use(searchRouter);
   app.use(dmsRouter);
+  app.use(crashesRouter);
   app.use(notFound);
   app.use(errorHandler);
   return app;

@@ -9,11 +9,21 @@
     "dev:docker": "vite --host",
     "build": "vite build",
     "test": "echo \"desktop: no tests yet (Phase 1 stub)\"",
-    "electron:dev": "electron ./electron/main/main.js"
+    "electron:dev": "electron ./electron/main/main.js",
+    "electron:smoke": "node ./scripts/smoke.js",
+    "dist": "electron-builder --config electron-builder.yml",
+    "dist:dir": "electron-builder --config electron-builder.yml --dir --publish never",
+    "dist:win": "electron-builder --config electron-builder.yml --win --publish never",
+    "dist:linux": "electron-builder --config electron-builder.yml --linux --publish never",
+    "dist:mac": "electron-builder --config electron-builder.yml --mac --publish never",
+    "audit": "npm audit --audit-level=high",
+    "icons": "node ./scripts/make-icons.js"
   },
   "dependencies": {
     "@teamchat/api-client": "workspace:^",
     "dompurify": "^3.4.16",
+    "electron-log": "^5.4.3",
+    "electron-updater": "^6.6.2",
     "marked": "^18.0.14",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -24,6 +34,7 @@
     "@tailwindcss/vite": "^4.3.3",
     "@vitejs/plugin-react": "^4.3.1",
     "electron": "^32.0.0",
+    "electron-builder": "^26.0.12",
     "tailwindcss": "^4.3.3",
     "vite": "^5.4.8"
   }

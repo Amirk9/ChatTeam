@@ -30,6 +30,21 @@ Check 'backend health ok' {
 Check 'backend version' {
   $v = Invoke-RestMethod -Uri 'http://localhost:3000/version' -TimeoutSec 10
   if ($v.name -ne 'teamchat-server') { throw 'unexpected version response' }
+  if (-not $v.minAppVersion) { throw 'version missing minAppVersion (Phase 10 compat)' }
+}
+
+Check 'update feed reachable' {
+  $u = Invoke-RestMethod -Uri 'http://localhost:3000/updates/latest?current=0.1.0' -TimeoutSec 10
+  if ($null -eq $u.available) { throw 'updates feed malformed' }
+}
+
+Check 'crash endpoint live' {
+  try {
+    Invoke-RestMethod -Uri 'http://localhost:3000/crashes' -Method POST -ContentType 'application/json' -Body '{"error":""}' -TimeoutSec 10 | Out-Null
+    throw 'crash endpoint accepted empty report'
+  } catch {
+    if ($_.Exception.Response.StatusCode.value__ -ne 400) { throw 'crash endpoint unexpected status' }
+  }
 }
 
 Check 'frontend UI serves on 5173' {

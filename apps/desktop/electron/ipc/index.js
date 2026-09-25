@@ -1,5 +1,20 @@
-// IPC handlers registered by main.js (Phase 1: system only).
-// Phase 2: auth.ipc.js (login/logout/getSession + safeStorage)
-// Phase 7: file.ipc.js (open/save dialogs)
-// Phase 8+: window/notification ipc extensions.
-export const IPC_CHANNELS = Object.freeze(['system:ping', 'system:version', 'files:open', 'files:save', 'files:write']);
+// IPC channels registered by main.js (Phase 10 surface).
+// auth.* persists refresh tokens in OS keychain (safeStorage).
+// system.* exposes version/logs/config/updates/badge (validated in main).
+export const IPC_CHANNELS = Object.freeze([
+  'system:ping',
+  'system:version',
+  'logs:tail',
+  'logs:reveal',
+  'logs:write',
+  'config:get',
+  'config:set',
+  'updates:check',
+  'notifications:badge',
+  'auth:login',
+  'auth:getSession',
+  'auth:logout',
+  'files:open',
+  'files:save',
+  'files:write',
+]);

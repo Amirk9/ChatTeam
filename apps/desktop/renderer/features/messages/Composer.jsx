@@ -4,6 +4,7 @@ import { useDMs } from '../../stores/dm.store.jsx';
 import { workspaceApi } from '../../services/workspaces.js';
 import { typingEmit, dmTypingEmit } from '../../stores/presence.store.jsx';
 import { uploadFiles, pickFiles, formatSize } from '../../services/files.js';
+import { sendWithOutbox } from '../../services/outbox.js';
 const EMOJI = ['👍', '❤️', '😂', '🎉', '😮', '😢', '👀', '✅', '🔥', '👏', '🙏', '💯'];
 
 // Slack-style composer: @mention autocomplete, emoji picker, code button.
@@ -19,6 +20,7 @@ export default function Composer({ channel, dm, workspaceId, replyTo = null, onS
   const [hi, setHi] = useState(0);
   const [showEmoji, setShowEmoji] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [queuedNote, setQueuedNote] = useState(false);
   const [pending, setPending] = useState([]); // {id?, name, size, progress, error}
   const [dragOver, setDragOver] = useState(false);
   const boxRef = useRef(null);
@@ -79,13 +81,15 @@ export default function Composer({ channel, dm, workspaceId, replyTo = null, onS
     if (isDm) dmTypingEmit(dm.id, 'stop');
     else typingEmit(channel.id, 'stop');
     try {
+      const input = { content, parentMessageId: replyTo, attachmentIds: done.map((p) => p.id) };
       const msg = isDm
-        ? await dmStore.send(dm.id, { content, parentMessageId: replyTo, attachmentIds: done.map((p) => p.id) })
-        : await send(channel.id, { content, parentMessageId: replyTo, attachmentIds: done.map((p) => p.id) });
+        ? await sendWithOutbox('dm', dm.id, input, (id, body) => dmStore.send(id, body))
+        : await sendWithOutbox('channel', channel.id, input, (id, body) => send(id, body));
       setText('');
       setPending([]);
       setQuery(null);
-      if (replyTo) {
+      setQueuedNote(Boolean(msg?.queued));
+      if (replyTo && !msg?.queued) {
         await openThread(target.id, replyTo).catch(() => refreshThread());
       }
       onSent?.(msg);
@@ -175,6 +179,7 @@ export default function Composer({ channel, dm, workspaceId, replyTo = null, onS
           <button onClick={attachClicked} className="hover:bg-gray-100 rounded px-1.5 py-0.5" title="Attach files">📎</button>
           <button onClick={insertCode} className="hover:bg-gray-100 rounded px-1.5 py-0.5 font-mono text-xs" title="Code block">{'</>'}</button>
           <span className="text-xs text-gray-400 ml-1 hidden sm:inline">**bold** *italic* `code` @mention supported</span>
+          {queuedNote ? <span className="text-xs text-yellow-700 ml-1">Queued — will send on reconnect</span> : null}
           <div className="flex-1" />
           <button onClick={submit} disabled={busy || (!text.trim() && !pending.some((p) => p.id)) || pending.some((p) => p.uploading)} className="text-xs px-3 py-1 rounded bg-[#611f69] text-white disabled:opacity-40">Send</button>
           {showEmoji ? (

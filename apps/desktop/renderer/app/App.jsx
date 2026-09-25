@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { Suspense, lazy, useEffect, useState } from 'react';
 import { Link, Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../stores/auth.store.jsx';
 import { useWorkspace } from '../stores/workspace.store.jsx';
@@ -15,12 +15,36 @@ import Composer from '../features/messages/Composer.jsx';
 import ThreadPane from '../features/messages/ThreadPane.jsx';
 import Bell from '../features/notifications/Bell.jsx';
 import SearchBar from '../features/search/SearchBar.jsx';
-import SearchPage from '../features/search/SearchPage.jsx';
 import { DMList } from '../features/direct-messages/DMList.jsx';
-import DMPage from '../features/direct-messages/DMPage.jsx';
-import Members from '../features/workspace/Members.jsx';
-import Settings from '../features/workspace/Settings.jsx';
-import Profile from '../features/workspace/Profile.jsx';
+import OfflineBanner from '../features/system/OfflineBanner.jsx';
+import UpdateBanner from '../features/system/UpdateBanner.jsx';
+import { usePresence } from '../stores/presence.store.jsx';
+import { checkServerCompat, IN_APP } from '../services/api.js';
+
+// Phase 10 perf: secondary routes split into lazy chunks (smaller boot bundle).
+const SearchPage = lazy(() => import('../features/search/SearchPage.jsx'));
+const DMPage = lazy(() => import('../features/direct-messages/DMPage.jsx'));
+const Members = lazy(() => import('../features/workspace/Members.jsx'));
+const Settings = lazy(() => import('../features/workspace/Settings.jsx'));
+const Profile = lazy(() => import('../features/workspace/Profile.jsx'));
+
+function RouteFallback() {
+  return <p className="p-8 text-sm text-gray-500">Loading…</p>;
+}
+
+// teamchat:// deep links (dm/<id> | channel/<id> | join/<token>) from main.
+function useDeepLinks() {
+  const nav = useNavigate();
+  const { switchTo } = useWorkspace();
+  useEffect(() => {
+    return window.teamchat?.deepLink?.on?.(({ kind, value }) => {
+      if (!value) return;
+      if (kind === 'dm') nav(`/dm/${value}`);
+      else if (kind === 'channel') nav(`/?channel=${encodeURIComponent(value)}`);
+      else if (kind === 'join') nav(`/?join=${encodeURIComponent(value)}`);
+    });
+  }, [nav, switchTo]);
+}
 
 function RequireAuth({ children }) {
   const { user, loading } = useAuth();
@@ -108,7 +132,18 @@ function Home() {
 function Shell() {
   const { user, logout } = useAuth();
   const { current } = useWorkspace();
+  const { notifUnread } = usePresence();
   const nav = useNavigate();
+  const [compat, setCompat] = useState(null);
+  useDeepLinks();
+
+  useEffect(() => {
+    checkServerCompat().then(setCompat).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    window.teamchat?.system?.setBadge?.(notifUnread || 0);
+  }, [notifUnread]);
 
   async function signOut() {
     await logout();
@@ -129,6 +164,13 @@ function Shell() {
           </Link>
         </div>
       </header>
+      <OfflineBanner />
+      <UpdateBanner />
+      {compat && compat.appSupported === false ? (
+        <div className="shrink-0 bg-red-700 text-white text-xs px-4 py-1.5 text-center">
+          This app (v{compat.appVersion}) is too old for this server (needs ≥ v{compat.minAppVersion}). Please update to keep chatting.
+        </div>
+      ) : null}
 
       <div className="flex-1 flex min-h-0">
         <aside className="w-60 shrink-0 bg-[#3F0E40] text-white flex flex-col min-h-0">
@@ -158,6 +200,7 @@ function Shell() {
         </aside>
 
         <main className="flex-1 flex flex-col min-w-0 bg-white min-h-0">
+          <Suspense fallback={<RouteFallback />}>
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/dm/:id" element={<DMPage />} />
@@ -166,6 +209,7 @@ function Shell() {
             <Route path="/settings" element={<Settings />} />
             <Route path="/profile" element={<Profile />} />
           </Routes>
+          </Suspense>
         </main>
 
         <aside className="w-64 shrink-0 border-l border-gray-200 bg-gray-50 p-4 hidden lg:block">
